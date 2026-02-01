@@ -1,17 +1,45 @@
-This is a Kotlin Multiplatform project targeting Android, iOS.
+# WealthMate
 
-* `/composeApp` is for code that will be shared across your Compose Multiplatform applications.
-  It contains several subfolders:
-  - `commonMain` is for code that’s common for all targets.
-  - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
-    For example, if you want to use Apple’s CoreCrypto for the iOS part of your Kotlin app,
-    `iosMain` would be the right folder for such calls.
+A personal finance tracker for UK residents built with Kotlin Multiplatform and Compose Multiplatform.
 
-* `/iosApp` contains iOS applications. Even if you’re sharing your UI with Compose Multiplatform, 
-  you need this entry point for your iOS app. This is also where you should add SwiftUI code for your project.
+## Features
 
-* `/shared` is for the code that will be shared between all targets in the project.
-  The most important subfolder is `commonMain`. If preferred, you can add code to the platform-specific folders here too.
+- **Salary Tracking**: Record your monthly net salary
+- **Outgoings Management**: Track all your monthly expenses by category (bills, groceries, transport, entertainment, subscriptions)
+- **UK Savings Accounts**: Manage multiple savings accounts including ISAs, LISAs, Premium Bonds, and more
+- **Mortgage Tracking**: Keep track of your mortgage details including remaining balance, monthly payments, and interest rate
+- **Dashboard**: View a comprehensive summary of your financial situation
 
+## Platforms
 
-Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html)…
+- **Web** (WASM): Hosted on GitHub Pages - data stored in browser localStorage
+- **Android**: Native Android app - data stored in SharedPreferences
+- **iOS**: Coming soon
+
+## Live Demo
+
+Visit: https://waliahimanshu.github.io/wealthmate/
+
+## Tech Stack
+
+- Kotlin Multiplatform
+- Compose Multiplatform
+- Kotlin/WASM for web
+- Material 3 Design
+- kotlinx.serialization for data persistence
+
+## Building
+
+### Web
+```bash
+./gradlew :composeApp:wasmJsBrowserDevelopmentRun
+```
+
+### Android
+```bash
+./gradlew :composeApp:assembleDebug
+```
+
+## License
+
+MIT
