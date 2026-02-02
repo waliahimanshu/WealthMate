@@ -14,16 +14,51 @@ fun main() {
     val localStorage = LocalStorageImpl()
     val scope = CoroutineScope(Dispatchers.Default)
 
-    // For now, start without Gist storage (user can configure later)
-    // In future: load token and create GistStorage if available
-    val repository = FinanceRepository(localStorage, null)
-
-    // Initialize repository
-    scope.launch {
-        repository.initialize()
-    }
-
     CanvasBasedWindow(canvasElementId = "ComposeTarget", title = "WealthMate") {
-        WealthMateApp(repository = repository)
+        var currentToken by remember { mutableStateOf<String?>(null) }
+        var gistStorage by remember { mutableStateOf<GistStorage?>(null) }
+        var repository by remember { mutableStateOf<FinanceRepository?>(null) }
+
+        // Load token on startup
+        LaunchedEffect(Unit) {
+            currentToken = localStorage.loadToken()
+            if (currentToken != null) {
+                gistStorage = GistStorage(currentToken!!)
+            }
+            repository = FinanceRepository(localStorage, gistStorage)
+            repository?.initialize()
+        }
+
+        // Handle token changes
+        fun saveToken(token: String) {
+            scope.launch {
+                localStorage.saveToken(token)
+                currentToken = token
+                gistStorage = GistStorage(token)
+                // Recreate repository with new Gist storage
+                repository = FinanceRepository(localStorage, gistStorage)
+                repository?.initialize()
+            }
+        }
+
+        fun clearToken() {
+            scope.launch {
+                localStorage.clearToken()
+                currentToken = null
+                gistStorage = null
+                // Recreate repository without Gist storage
+                repository = FinanceRepository(localStorage, null)
+                repository?.initialize()
+            }
+        }
+
+        repository?.let { repo ->
+            WealthMateApp(
+                repository = repo,
+                currentToken = currentToken,
+                onSaveToken = ::saveToken,
+                onClearToken = ::clearToken
+            )
+        }
     }
 }

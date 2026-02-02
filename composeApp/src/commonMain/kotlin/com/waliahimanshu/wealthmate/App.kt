@@ -35,7 +35,10 @@ enum class Screen {
 
 @Composable
 fun WealthMateApp(
-    repository: FinanceRepository
+    repository: FinanceRepository,
+    currentToken: String?,
+    onSaveToken: (String) -> Unit,
+    onClearToken: () -> Unit
 ) {
     var currentScreen by remember { mutableStateOf(Screen.DASHBOARD) }
     val householdData by repository.data.collectAsState()
@@ -170,6 +173,9 @@ fun WealthMateApp(
                             )
                             Screen.SETTINGS -> SettingsScreen(
                                 syncStatus = syncStatus,
+                                currentToken = currentToken,
+                                onSaveToken = onSaveToken,
+                                onClearToken = onClearToken,
                                 onSync = { scope.launch { repository.syncWithCloud() } },
                                 onForceRefresh = { scope.launch { repository.forceRefreshFromCloud() } }
                             )
@@ -1175,67 +1181,161 @@ fun ContributeDialog(goal: SharedGoal, members: List<HouseholdMember>, onDismiss
 @Composable
 fun SettingsScreen(
     syncStatus: SyncStatus,
+    currentToken: String?,
+    onSaveToken: (String) -> Unit,
+    onClearToken: () -> Unit,
     onSync: () -> Unit,
     onForceRefresh: () -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Settings", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+    var tokenInput by remember { mutableStateOf("") }
+    var showToken by remember { mutableStateOf(false) }
+    val hasToken = !currentToken.isNullOrBlank()
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("Cloud Sync", fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(8.dp))
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        item {
+            Text("Settings", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        }
 
-                val statusText = when (syncStatus) {
-                    is SyncStatus.Idle -> "Ready"
-                    is SyncStatus.Syncing -> "Syncing..."
-                    is SyncStatus.NotConfigured -> "Not configured - add GitHub token"
-                    is SyncStatus.Success -> "✓ ${syncStatus.message}"
-                    is SyncStatus.Error -> "✗ ${syncStatus.message}"
-                }
-                Text(statusText, color = when (syncStatus) {
-                    is SyncStatus.Error -> Color.Red
-                    is SyncStatus.Success -> Color(0xFF4CAF50)
-                    is SyncStatus.NotConfigured -> Color(0xFFFF9800)
-                    else -> Color.Gray
-                })
+        // Token Input Card
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("GitHub Token", fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(8.dp))
 
-                Spacer(Modifier.height(12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = onSync) { Text("Sync Now") }
-                    OutlinedButton(onClick = onForceRefresh) { Text("Force Refresh") }
+                    if (hasToken) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text("✓ Token configured", color = Color(0xFF4CAF50))
+                                Text(
+                                    if (showToken) currentToken!! else "••••••••••••${currentToken!!.takeLast(4)}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.Gray
+                                )
+                            }
+                            Row {
+                                TextButton(onClick = { showToken = !showToken }) {
+                                    Text(if (showToken) "Hide" else "Show")
+                                }
+                                TextButton(onClick = onClearToken) {
+                                    Text("Remove", color = Color.Red)
+                                }
+                            }
+                        }
+                    } else {
+                        Text("Enter your GitHub token to sync across devices:", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = tokenInput,
+                            onValueChange = { tokenInput = it },
+                            label = { Text("GitHub Token") },
+                            placeholder = { Text("ghp_xxxxxxxxxxxx") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            visualTransformation = if (showToken) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation()
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = {
+                                    if (tokenInput.isNotBlank()) {
+                                        onSaveToken(tokenInput)
+                                        tokenInput = ""
+                                    }
+                                },
+                                enabled = tokenInput.isNotBlank()
+                            ) {
+                                Text("Save Token")
+                            }
+                            TextButton(onClick = { showToken = !showToken }) {
+                                Text(if (showToken) "Hide" else "Show")
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("GitHub Token Setup", fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(8.dp))
-                Text("To sync across devices, you need a GitHub Personal Access Token:", style = MaterialTheme.typography.bodySmall)
-                Spacer(Modifier.height(8.dp))
-                Text("1. Go to github.com/settings/tokens", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                Text("2. Create a 'Fine-grained token'", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                Text("3. Grant 'Gists' read/write permission", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                Text("4. Copy the token and paste below", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+        // Sync Status Card
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Cloud Sync", fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(8.dp))
+
+                    val statusText = when (syncStatus) {
+                        is SyncStatus.Idle -> if (hasToken) "Ready to sync" else "Add token to enable sync"
+                        is SyncStatus.Syncing -> "Syncing..."
+                        is SyncStatus.NotConfigured -> "Add GitHub token above to enable"
+                        is SyncStatus.Success -> "✓ ${syncStatus.message}"
+                        is SyncStatus.Error -> "✗ ${syncStatus.message}"
+                    }
+                    Text(statusText, color = when (syncStatus) {
+                        is SyncStatus.Error -> Color.Red
+                        is SyncStatus.Success -> Color(0xFF4CAF50)
+                        is SyncStatus.NotConfigured -> Color(0xFFFF9800)
+                        else -> Color.Gray
+                    })
+
+                    if (hasToken) {
+                        Spacer(Modifier.height(12.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = onSync) { Text("Sync Now") }
+                            OutlinedButton(onClick = onForceRefresh) { Text("Force Refresh") }
+                        }
+                    }
+                }
             }
         }
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("About WealthMate", fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(8.dp))
-                Text("Version 2.0", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                Text("Your data is stored locally and in your private GitHub Gist.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+        // Instructions Card
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("How to get a GitHub Token", fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(8.dp))
+                    Text("1. Go to github.com → Settings → Developer settings → Personal access tokens → Fine-grained tokens", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Spacer(Modifier.height(4.dp))
+                    Text("2. Click 'Generate new token'", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Spacer(Modifier.height(4.dp))
+                    Text("3. Give it a name like 'WealthMate'", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Spacer(Modifier.height(4.dp))
+                    Text("4. Under 'Account permissions' → 'Gists' → Select 'Read and write'", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Spacer(Modifier.height(4.dp))
+                    Text("5. Click 'Generate token' and copy it", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Spacer(Modifier.height(12.dp))
+                    Text("💡 Share this same token with your partner so you both see the same data!", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
+
+        // About Card
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("About WealthMate", fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(8.dp))
+                    Text("Version 2.0", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Text("Your data is stored locally and synced to a private GitHub Gist.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Spacer(Modifier.height(8.dp))
+                    Text("Data is encrypted in transit and only accessible with your token.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                }
             }
         }
     }
