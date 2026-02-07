@@ -1,6 +1,8 @@
 package com.waliahimanshu.wealthmate
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -18,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -84,12 +87,10 @@ fun WealthMateApp(
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
                             )
-                            FilledTonalIconButton(onClick = { isDarkMode = !isDarkMode }) {
-                                Text(
-                                    text = if (isDarkMode) "\u2600" else "\u263D",
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                            }
+                            DarkModeSwitch(
+                                isDarkMode = isDarkMode,
+                                onToggle = { isDarkMode = it }
+                            )
                         }
                     }
 
@@ -239,6 +240,41 @@ fun SyncStatusBar(status: SyncStatus) {
         ) {
             Text(text, style = MaterialTheme.typography.bodySmall, color = color)
         }
+    }
+}
+
+@Composable
+fun DarkModeSwitch(
+    isDarkMode: Boolean,
+    onToggle: (Boolean) -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = if (isDarkMode) "\u263D" else "\u2600\uFE0F",
+            style = MaterialTheme.typography.titleMedium
+        )
+        Switch(
+            checked = isDarkMode,
+            onCheckedChange = onToggle,
+            thumbContent = {
+                Box(
+                    modifier = Modifier.size(SwitchDefaults.IconSize),
+                    contentAlignment = Alignment.Center
+                ) {
+                    val rotation by animateFloatAsState(
+                        targetValue = if (isDarkMode) 360f else 0f,
+                        animationSpec = tween(400)
+                    )
+                    Text(
+                        text = if (isDarkMode) "\u263D" else "\u2600\uFE0F",
+                        modifier = Modifier.graphicsLayer { rotationZ = rotation }
+                    )
+                }
+            }
+        )
     }
 }
 
