@@ -9,6 +9,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -40,28 +43,18 @@ fun WealthMateApp(
     onSaveToken: (String) -> Unit,
     onClearToken: () -> Unit
 ) {
-    var currentScreen by remember { mutableStateOf(Screen.DASHBOARD) }
-    val householdData by repository.data.collectAsState()
-    val syncStatus by repository.syncStatus.collectAsState()
-    val isLoading by repository.isLoading.collectAsState()
-    val scope = rememberCoroutineScope()
+    var isDarkMode by remember { mutableStateOf(true) }
 
-    // Selected member for detailed view (null = household view)
-    var selectedMemberId by remember { mutableStateOf<String?>(null) }
+    WealthMateTheme(isDark = isDarkMode) {
+        var currentScreen by remember { mutableStateOf(Screen.DASHBOARD) }
+        val householdData by repository.data.collectAsState()
+        val syncStatus by repository.syncStatus.collectAsState()
+        val isLoading by repository.isLoading.collectAsState()
+        val scope = rememberCoroutineScope()
 
-    MaterialTheme(
-        colorScheme = darkColorScheme(
-            primary = Color(0xFF4CAF50),
-            secondary = Color(0xFF81C784),
-            tertiary = Color(0xFF64B5F6),
-            surface = Color(0xFF1E1E1E),
-            surfaceVariant = Color(0xFF2D2D2D),
-            background = Color(0xFF121212),
-            onPrimary = Color.White,
-            onSurface = Color.White,
-            onBackground = Color.White
-        )
-    ) {
+        // Selected member for detailed view (null = household view)
+        var selectedMemberId by remember { mutableStateOf<String?>(null) }
+
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background
@@ -74,6 +67,31 @@ fun WealthMateApp(
                 Column(modifier = Modifier.fillMaxSize()) {
                     // Sync status indicator
                     SyncStatusBar(syncStatus)
+
+                    // Top bar with dark mode toggle
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceContainer,
+                        tonalElevation = 2.dp
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "WealthMate",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            FilledTonalIconButton(onClick = { isDarkMode = !isDarkMode }) {
+                                Text(
+                                    text = if (isDarkMode) "\u2600" else "\u263D",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                            }
+                        }
+                    }
 
                     // Navigation
                     ScrollableTabRow(
@@ -144,6 +162,13 @@ fun WealthMateApp(
                                     scope.launch {
                                         repository.updateData { it.copy(mortgage = mortgage) }
                                     }
+                                },
+                                onAddCustomCategory = { category ->
+                                    scope.launch {
+                                        repository.updateData {
+                                            it.copy(customOutgoingCategories = it.customOutgoingCategories + category)
+                                        }
+                                    }
                                 }
                             )
                             Screen.SAVINGS -> SavingsScreen(
@@ -169,6 +194,13 @@ fun WealthMateApp(
                                     scope.launch {
                                         repository.updateData { it.copy(sharedGoals = goals) }
                                     }
+                                },
+                                onAddCustomCategory = { category ->
+                                    scope.launch {
+                                        repository.updateData {
+                                            it.copy(customGoalCategories = it.customGoalCategories + category)
+                                        }
+                                    }
                                 }
                             )
                             Screen.SETTINGS -> SettingsScreen(
@@ -190,18 +222,18 @@ fun WealthMateApp(
 @Composable
 fun SyncStatusBar(status: SyncStatus) {
     val (color, text) = when (status) {
-        is SyncStatus.Idle -> Color.Gray to ""
-        is SyncStatus.Syncing -> Color(0xFF2196F3) to "Syncing..."
+        is SyncStatus.Idle -> MaterialTheme.colorScheme.outline to ""
+        is SyncStatus.Syncing -> MaterialTheme.colorScheme.tertiary to "Syncing..."
         is SyncStatus.NotConfigured -> Color(0xFFFF9800) to "Cloud sync not configured"
-        is SyncStatus.Success -> Color(0xFF4CAF50) to status.message
-        is SyncStatus.Error -> Color(0xFFF44336) to status.message
+        is SyncStatus.Success -> MaterialTheme.colorScheme.primary to status.message
+        is SyncStatus.Error -> MaterialTheme.colorScheme.error to status.message
     }
 
     if (text.isNotEmpty()) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(color.copy(alpha = 0.2f))
+                .background(color.copy(alpha = 0.15f))
                 .padding(4.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -222,14 +254,6 @@ fun DashboardScreen(
     ) {
         // Header with member selector
         item {
-            Text(
-                "WealthMate",
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Spacer(Modifier.height(8.dp))
-
             // Member chips for filtering
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -356,7 +380,7 @@ fun GoalProgressCard(goal: SharedGoal) {
             Text(
                 "${formatCurrency(goal.currentAmount)} / ${formatCurrency(goal.targetAmount)}",
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -392,12 +416,12 @@ fun MemberSummaryCard(member: HouseholdMember, onClick: () -> Unit) {
                 Text(
                     "Net: ${formatCurrency(member.netMonthly)}/mo",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(formatCurrency(member.totalSavings), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                Text("savings", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                Text("savings", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -435,7 +459,7 @@ fun MembersScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text("No members yet", style = MaterialTheme.typography.titleMedium)
-                    Text("Add yourself and your partner to get started", color = Color.Gray)
+                    Text("Add yourself and your partner to get started", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -497,13 +521,13 @@ fun MemberCard(
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(member.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                    Text("Salary: ${formatCurrency(member.salary)}/mo", color = Color.Gray)
+                    Text("Salary: ${formatCurrency(member.salary)}/mo", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 IconButton(onClick = onEdit) {
-                    Text("✏️")
+                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary)
                 }
                 IconButton(onClick = onDelete) {
-                    Text("🗑️", color = Color.Red)
+                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
                 }
             }
             Spacer(Modifier.height(12.dp))
@@ -520,7 +544,7 @@ fun MemberCard(
 fun StatItem(label: String, value: String, color: Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, fontWeight = FontWeight.Bold, color = color)
-        Text(label, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -631,11 +655,14 @@ fun OutgoingsScreen(
     data: HouseholdFinances,
     onUpdateSharedOutgoings: (List<Outgoing>) -> Unit,
     onUpdateMemberOutgoings: (String, List<Outgoing>) -> Unit,
-    onUpdateMortgage: (MortgageInfo?) -> Unit
+    onUpdateMortgage: (MortgageInfo?) -> Unit,
+    onAddCustomCategory: (String) -> Unit
 ) {
     var selectedTab by remember { mutableStateOf(0) }
     var showAddDialog by remember { mutableStateOf(false) }
     var addingForMemberId by remember { mutableStateOf<String?>(null) }
+    var editingOutgoing by remember { mutableStateOf<Outgoing?>(null) }
+    var editingForMemberId by remember { mutableStateOf<String?>(null) }
 
     val tabs = listOf("Shared") + data.members.map { it.name }
 
@@ -672,6 +699,10 @@ fun OutgoingsScreen(
             items(currentOutgoings) { outgoing ->
                 OutgoingCard(
                     outgoing = outgoing,
+                    onEdit = {
+                        editingOutgoing = outgoing
+                        editingForMemberId = currentMemberId
+                    },
                     onDelete = {
                         if (currentMemberId == null) {
                             onUpdateSharedOutgoings(data.sharedOutgoings.filter { it.id != outgoing.id })
@@ -686,6 +717,7 @@ fun OutgoingsScreen(
 
     if (showAddDialog) {
         AddOutgoingDialog(
+            customCategories = data.customOutgoingCategories,
             onDismiss = { showAddDialog = false },
             onAdd = { outgoing ->
                 if (addingForMemberId == null) {
@@ -697,7 +729,28 @@ fun OutgoingsScreen(
                     }
                 }
                 showAddDialog = false
-            }
+            },
+            onAddCustomCategory = onAddCustomCategory
+        )
+    }
+
+    editingOutgoing?.let { outgoing ->
+        EditOutgoingDialog(
+            outgoing = outgoing,
+            customCategories = data.customOutgoingCategories,
+            onDismiss = { editingOutgoing = null },
+            onSave = { updated ->
+                if (editingForMemberId == null) {
+                    onUpdateSharedOutgoings(data.sharedOutgoings.map { if (it.id == updated.id) updated else it })
+                } else {
+                    val member = data.members.find { it.id == editingForMemberId }
+                    if (member != null) {
+                        onUpdateMemberOutgoings(editingForMemberId!!, member.outgoings.map { if (it.id == updated.id) updated else it })
+                    }
+                }
+                editingOutgoing = null
+            },
+            onAddCustomCategory = onAddCustomCategory
         )
     }
 }
@@ -722,8 +775,8 @@ fun MortgageSection(mortgage: MortgageInfo?, onUpdate: (MortgageInfo?) -> Unit) 
                 }
             }
             if (mortgage != null) {
-                Text("${mortgage.provider} - ${formatCurrency(mortgage.monthlyPayment)}/mo", color = Color.Gray)
-                Text("${mortgage.interestRate}% - ${mortgage.termRemainingMonths} months remaining", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                Text("${mortgage.provider} - ${formatCurrency(mortgage.monthlyPayment)}/mo", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("${mortgage.interestRate}% - ${mortgage.termRemainingMonths} months remaining", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -741,7 +794,7 @@ fun MortgageSection(mortgage: MortgageInfo?, onUpdate: (MortgageInfo?) -> Unit) 
 }
 
 @Composable
-fun OutgoingCard(outgoing: Outgoing, onDelete: () -> Unit) {
+fun OutgoingCard(outgoing: Outgoing, onEdit: () -> Unit, onDelete: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -751,15 +804,16 @@ fun OutgoingCard(outgoing: Outgoing, onDelete: () -> Unit) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(outgoing.name, fontWeight = FontWeight.Bold)
-                Text(outgoing.category.name.replace("_", " "), style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                Text(outgoing.displayCategory, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(formatCurrency(outgoing.amount), fontWeight = FontWeight.Bold, color = Color(0xFFF44336))
-                IconButton(onClick = onDelete) {
-                    Text("✕", color = Color.Red)
-                }
+            Text(formatCurrency(outgoing.amount), fontWeight = FontWeight.Bold, color = Color(0xFFF44336))
+            IconButton(onClick = onEdit) {
+                Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary)
+            }
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
             }
         }
     }
@@ -767,11 +821,21 @@ fun OutgoingCard(outgoing: Outgoing, onDelete: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddOutgoingDialog(onDismiss: () -> Unit, onAdd: (Outgoing) -> Unit) {
+fun AddOutgoingDialog(
+    customCategories: List<String>,
+    onDismiss: () -> Unit,
+    onAdd: (Outgoing) -> Unit,
+    onAddCustomCategory: (String) -> Unit
+) {
     var name by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
     var category by remember { mutableStateOf(OutgoingCategory.OTHER) }
+    var customCategory by remember { mutableStateOf<String?>(null) }
     var expanded by remember { mutableStateOf(false) }
+    var showAddCategoryField by remember { mutableStateOf(false) }
+    var newCategoryName by remember { mutableStateOf("") }
+
+    val displayCategory = customCategory ?: category.name.replace("_", " ")
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -781,11 +845,41 @@ fun AddOutgoingDialog(onDismiss: () -> Unit, onAdd: (Outgoing) -> Unit) {
                 OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = amount, onValueChange = { amount = it }, label = { Text("Amount") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), prefix = { Text("£") }, modifier = Modifier.fillMaxWidth())
                 ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
-                    OutlinedTextField(value = category.name.replace("_", " "), onValueChange = {}, readOnly = true, label = { Text("Category") }, modifier = Modifier.fillMaxWidth().menuAnchor())
+                    OutlinedTextField(value = displayCategory, onValueChange = {}, readOnly = true, label = { Text("Category") }, modifier = Modifier.fillMaxWidth().menuAnchor())
                     ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        // Built-in categories
                         OutgoingCategory.entries.forEach { cat ->
-                            DropdownMenuItem(text = { Text(cat.name.replace("_", " ")) }, onClick = { category = cat; expanded = false })
+                            DropdownMenuItem(text = { Text(cat.name.replace("_", " ")) }, onClick = { category = cat; customCategory = null; expanded = false })
                         }
+                        // Custom categories
+                        if (customCategories.isNotEmpty()) {
+                            HorizontalDivider()
+                            Text("Custom", modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        customCategories.forEach { custom ->
+                            DropdownMenuItem(text = { Text(custom) }, onClick = { customCategory = custom; expanded = false })
+                        }
+                        HorizontalDivider()
+                        DropdownMenuItem(text = { Text("+ Add Custom Category", color = MaterialTheme.colorScheme.primary) }, onClick = { showAddCategoryField = true; expanded = false })
+                    }
+                }
+                if (showAddCategoryField) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = newCategoryName,
+                            onValueChange = { newCategoryName = it },
+                            label = { Text("New Category") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                        Button(onClick = {
+                            if (newCategoryName.isNotBlank()) {
+                                onAddCustomCategory(newCategoryName)
+                                customCategory = newCategoryName
+                                newCategoryName = ""
+                                showAddCategoryField = false
+                            }
+                        }) { Text("Add") }
                     }
                 }
             }
@@ -793,9 +887,84 @@ fun AddOutgoingDialog(onDismiss: () -> Unit, onAdd: (Outgoing) -> Unit) {
         confirmButton = {
             Button(onClick = {
                 if (name.isNotBlank() && (amount.toDoubleOrNull() ?: 0.0) > 0) {
-                    onAdd(Outgoing(name = name, amount = amount.toDoubleOrNull() ?: 0.0, category = category))
+                    onAdd(Outgoing(name = name, amount = amount.toDoubleOrNull() ?: 0.0, category = category, customCategory = customCategory))
                 }
             }) { Text("Add") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EditOutgoingDialog(
+    outgoing: Outgoing,
+    customCategories: List<String>,
+    onDismiss: () -> Unit,
+    onSave: (Outgoing) -> Unit,
+    onAddCustomCategory: (String) -> Unit
+) {
+    var name by remember { mutableStateOf(outgoing.name) }
+    var amount by remember { mutableStateOf(outgoing.amount.toString()) }
+    var category by remember { mutableStateOf(outgoing.category) }
+    var customCategory by remember { mutableStateOf(outgoing.customCategory) }
+    var expanded by remember { mutableStateOf(false) }
+    var showAddCategoryField by remember { mutableStateOf(false) }
+    var newCategoryName by remember { mutableStateOf("") }
+
+    val displayCategory = customCategory ?: category.name.replace("_", " ")
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit Outgoing") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = amount, onValueChange = { amount = it }, label = { Text("Amount") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), prefix = { Text("£") }, modifier = Modifier.fillMaxWidth())
+                ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+                    OutlinedTextField(value = displayCategory, onValueChange = {}, readOnly = true, label = { Text("Category") }, modifier = Modifier.fillMaxWidth().menuAnchor())
+                    ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        OutgoingCategory.entries.forEach { cat ->
+                            DropdownMenuItem(text = { Text(cat.name.replace("_", " ")) }, onClick = { category = cat; customCategory = null; expanded = false })
+                        }
+                        if (customCategories.isNotEmpty()) {
+                            HorizontalDivider()
+                            Text("Custom", modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        customCategories.forEach { custom ->
+                            DropdownMenuItem(text = { Text(custom) }, onClick = { customCategory = custom; expanded = false })
+                        }
+                        HorizontalDivider()
+                        DropdownMenuItem(text = { Text("+ Add Custom Category", color = MaterialTheme.colorScheme.primary) }, onClick = { showAddCategoryField = true; expanded = false })
+                    }
+                }
+                if (showAddCategoryField) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = newCategoryName,
+                            onValueChange = { newCategoryName = it },
+                            label = { Text("New Category") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                        Button(onClick = {
+                            if (newCategoryName.isNotBlank()) {
+                                onAddCustomCategory(newCategoryName)
+                                customCategory = newCategoryName
+                                newCategoryName = ""
+                                showAddCategoryField = false
+                            }
+                        }) { Text("Add") }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                if (name.isNotBlank()) {
+                    onSave(outgoing.copy(name = name, amount = amount.toDoubleOrNull() ?: 0.0, category = category, customCategory = customCategory))
+                }
+            }) { Text("Save") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
@@ -849,6 +1018,8 @@ fun SavingsScreen(
     var selectedTab by remember { mutableStateOf(0) }
     var showAddDialog by remember { mutableStateOf(false) }
     var addingForMemberId by remember { mutableStateOf<String?>(null) }
+    var editingAccount by remember { mutableStateOf<SavingsAccount?>(null) }
+    var editingForMemberId by remember { mutableStateOf<String?>(null) }
 
     val tabs = listOf("Joint Accounts") + data.members.map { it.name }
 
@@ -881,6 +1052,10 @@ fun SavingsScreen(
             items(currentAccounts) { account ->
                 SavingsAccountCard(
                     account = account,
+                    onEdit = {
+                        editingAccount = account
+                        editingForMemberId = currentMemberId
+                    },
                     onDelete = {
                         if (currentMemberId == null) {
                             onUpdateSharedAccounts(data.sharedAccounts.filter { it.id != account.id })
@@ -909,10 +1084,28 @@ fun SavingsScreen(
             }
         )
     }
+
+    editingAccount?.let { account ->
+        EditSavingsDialog(
+            account = account,
+            onDismiss = { editingAccount = null },
+            onSave = { updated ->
+                if (editingForMemberId == null) {
+                    onUpdateSharedAccounts(data.sharedAccounts.map { if (it.id == updated.id) updated else it })
+                } else {
+                    val member = data.members.find { it.id == editingForMemberId }
+                    if (member != null) {
+                        onUpdateMemberSavings(editingForMemberId!!, member.savings.map { if (it.id == updated.id) updated else it })
+                    }
+                }
+                editingAccount = null
+            }
+        )
+    }
 }
 
 @Composable
-fun SavingsAccountCard(account: SavingsAccount, onDelete: () -> Unit) {
+fun SavingsAccountCard(account: SavingsAccount, onEdit: () -> Unit, onDelete: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -922,16 +1115,17 @@ fun SavingsAccountCard(account: SavingsAccount, onDelete: () -> Unit) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(account.name, fontWeight = FontWeight.Bold)
-                Text("${account.provider} - ${account.accountType.name.replace("_", " ")}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                Text("${account.provider} - ${account.accountType.name.replace("_", " ")}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("${account.interestRate}% AER", style = MaterialTheme.typography.bodySmall, color = Color(0xFF4CAF50))
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(formatCurrency(account.balance), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                IconButton(onClick = onDelete) {
-                    Text("✕", color = Color.Red)
-                }
+            Text(formatCurrency(account.balance), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            IconButton(onClick = onEdit) {
+                Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary)
+            }
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
             }
         }
     }
@@ -979,12 +1173,54 @@ fun AddSavingsDialog(onDismiss: () -> Unit, onAdd: (SavingsAccount) -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+fun EditSavingsDialog(account: SavingsAccount, onDismiss: () -> Unit, onSave: (SavingsAccount) -> Unit) {
+    var name by remember { mutableStateOf(account.name) }
+    var provider by remember { mutableStateOf(account.provider) }
+    var balance by remember { mutableStateOf(account.balance.toString()) }
+    var interestRate by remember { mutableStateOf(account.interestRate.toString()) }
+    var accountType by remember { mutableStateOf(account.accountType) }
+    var expanded by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit Savings Account") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Account Name") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = provider, onValueChange = { provider = it }, label = { Text("Provider") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = balance, onValueChange = { balance = it }, label = { Text("Balance") }, prefix = { Text("£") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = interestRate, onValueChange = { interestRate = it }, label = { Text("Interest Rate (AER)") }, suffix = { Text("%") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
+                ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+                    OutlinedTextField(value = accountType.name.replace("_", " "), onValueChange = {}, readOnly = true, label = { Text("Account Type") }, modifier = Modifier.fillMaxWidth().menuAnchor())
+                    ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        UKAccountType.entries.forEach { type ->
+                            DropdownMenuItem(text = { Text(type.name.replace("_", " ")) }, onClick = { accountType = type; expanded = false })
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                if (name.isNotBlank() && provider.isNotBlank()) {
+                    onSave(account.copy(name = name, provider = provider, balance = balance.toDoubleOrNull() ?: 0.0, interestRate = interestRate.toDoubleOrNull() ?: 0.0, accountType = accountType))
+                }
+            }) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 fun GoalsScreen(
     data: HouseholdFinances,
-    onUpdateGoals: (List<SharedGoal>) -> Unit
+    onUpdateGoals: (List<SharedGoal>) -> Unit,
+    onAddCustomCategory: (String) -> Unit
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
     var contributingToGoal by remember { mutableStateOf<SharedGoal?>(null) }
+    var editingGoal by remember { mutableStateOf<SharedGoal?>(null) }
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(
@@ -1003,7 +1239,7 @@ fun GoalsScreen(
             ) {
                 Column(modifier = Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("No goals yet", style = MaterialTheme.typography.titleMedium)
-                    Text("Add a shared goal like a house deposit or holiday", color = Color.Gray, textAlign = TextAlign.Center)
+                    Text("Add a shared goal like a house deposit or holiday", color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                 }
             }
         }
@@ -1014,6 +1250,7 @@ fun GoalsScreen(
                     goal = goal,
                     members = data.members,
                     onContribute = { contributingToGoal = goal },
+                    onEdit = { editingGoal = goal },
                     onDelete = { onUpdateGoals(data.sharedGoals.filter { it.id != goal.id }) }
                 )
             }
@@ -1022,11 +1259,26 @@ fun GoalsScreen(
 
     if (showAddDialog) {
         AddGoalDialog(
+            customCategories = data.customGoalCategories,
             onDismiss = { showAddDialog = false },
             onAdd = { goal ->
                 onUpdateGoals(data.sharedGoals + goal)
                 showAddDialog = false
-            }
+            },
+            onAddCustomCategory = onAddCustomCategory
+        )
+    }
+
+    editingGoal?.let { goal ->
+        EditGoalDialog(
+            goal = goal,
+            customCategories = data.customGoalCategories,
+            onDismiss = { editingGoal = null },
+            onSave = { updated ->
+                onUpdateGoals(data.sharedGoals.map { if (it.id == updated.id) updated else it })
+                editingGoal = null
+            },
+            onAddCustomCategory = onAddCustomCategory
         )
     }
 
@@ -1049,20 +1301,21 @@ fun GoalsScreen(
 }
 
 @Composable
-fun GoalCard(goal: SharedGoal, members: List<HouseholdMember>, onContribute: () -> Unit, onDelete: () -> Unit) {
+fun GoalCard(goal: SharedGoal, members: List<HouseholdMember>, onContribute: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(goal.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                    Text(goal.category.name.replace("_", " "), style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Text(goal.displayCategory, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Row {
                     TextButton(onClick = onContribute) { Text("Contribute") }
-                    IconButton(onClick = onDelete) { Text("🗑️") }
+                    IconButton(onClick = onEdit) { Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary) }
+                    IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red) }
                 }
             }
 
@@ -1077,15 +1330,15 @@ fun GoalCard(goal: SharedGoal, members: List<HouseholdMember>, onContribute: () 
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("${formatCurrency(goal.currentAmount)} saved", color = MaterialTheme.colorScheme.primary)
-                Text("${formatCurrency(goal.remainingAmount)} to go", color = Color.Gray)
+                Text("${formatCurrency(goal.remainingAmount)} to go", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Text("Target: ${formatCurrency(goal.targetAmount)}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            Text("Target: ${formatCurrency(goal.targetAmount)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
             if (goal.contributions.isNotEmpty()) {
                 Spacer(Modifier.height(12.dp))
                 Text("Recent contributions:", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
                 goal.contributions.takeLast(3).reversed().forEach { contribution ->
-                    Text("${contribution.memberName}: ${formatCurrency(contribution.amount)}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Text("${contribution.memberName}: ${formatCurrency(contribution.amount)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -1094,11 +1347,21 @@ fun GoalCard(goal: SharedGoal, members: List<HouseholdMember>, onContribute: () 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddGoalDialog(onDismiss: () -> Unit, onAdd: (SharedGoal) -> Unit) {
+fun AddGoalDialog(
+    customCategories: List<String>,
+    onDismiss: () -> Unit,
+    onAdd: (SharedGoal) -> Unit,
+    onAddCustomCategory: (String) -> Unit
+) {
     var name by remember { mutableStateOf("") }
     var target by remember { mutableStateOf("") }
     var category by remember { mutableStateOf(GoalCategory.OTHER) }
+    var customCategory by remember { mutableStateOf<String?>(null) }
     var expanded by remember { mutableStateOf(false) }
+    var showAddCategoryField by remember { mutableStateOf(false) }
+    var newCategoryName by remember { mutableStateOf("") }
+
+    val displayCategory = customCategory ?: category.name.replace("_", " ")
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1108,11 +1371,39 @@ fun AddGoalDialog(onDismiss: () -> Unit, onAdd: (SharedGoal) -> Unit) {
                 OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Goal Name") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = target, onValueChange = { target = it }, label = { Text("Target Amount") }, prefix = { Text("£") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
                 ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
-                    OutlinedTextField(value = category.name.replace("_", " "), onValueChange = {}, readOnly = true, label = { Text("Category") }, modifier = Modifier.fillMaxWidth().menuAnchor())
+                    OutlinedTextField(value = displayCategory, onValueChange = {}, readOnly = true, label = { Text("Category") }, modifier = Modifier.fillMaxWidth().menuAnchor())
                     ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                         GoalCategory.entries.forEach { cat ->
-                            DropdownMenuItem(text = { Text(cat.name.replace("_", " ")) }, onClick = { category = cat; expanded = false })
+                            DropdownMenuItem(text = { Text(cat.name.replace("_", " ")) }, onClick = { category = cat; customCategory = null; expanded = false })
                         }
+                        if (customCategories.isNotEmpty()) {
+                            HorizontalDivider()
+                            Text("Custom", modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        customCategories.forEach { custom ->
+                            DropdownMenuItem(text = { Text(custom) }, onClick = { customCategory = custom; expanded = false })
+                        }
+                        HorizontalDivider()
+                        DropdownMenuItem(text = { Text("+ Add Custom Category", color = MaterialTheme.colorScheme.primary) }, onClick = { showAddCategoryField = true; expanded = false })
+                    }
+                }
+                if (showAddCategoryField) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = newCategoryName,
+                            onValueChange = { newCategoryName = it },
+                            label = { Text("New Category") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                        Button(onClick = {
+                            if (newCategoryName.isNotBlank()) {
+                                onAddCustomCategory(newCategoryName)
+                                customCategory = newCategoryName
+                                newCategoryName = ""
+                                showAddCategoryField = false
+                            }
+                        }) { Text("Add") }
                     }
                 }
             }
@@ -1120,9 +1411,92 @@ fun AddGoalDialog(onDismiss: () -> Unit, onAdd: (SharedGoal) -> Unit) {
         confirmButton = {
             Button(onClick = {
                 if (name.isNotBlank() && (target.toDoubleOrNull() ?: 0.0) > 0) {
-                    onAdd(SharedGoal(name = name, targetAmount = target.toDoubleOrNull() ?: 0.0, category = category))
+                    onAdd(SharedGoal(name = name, targetAmount = target.toDoubleOrNull() ?: 0.0, category = category, customCategory = customCategory))
                 }
             }) { Text("Add") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EditGoalDialog(
+    goal: SharedGoal,
+    customCategories: List<String>,
+    onDismiss: () -> Unit,
+    onSave: (SharedGoal) -> Unit,
+    onAddCustomCategory: (String) -> Unit
+) {
+    var name by remember { mutableStateOf(goal.name) }
+    var target by remember { mutableStateOf(goal.targetAmount.toString()) }
+    var currentAmount by remember { mutableStateOf(goal.currentAmount.toString()) }
+    var category by remember { mutableStateOf(goal.category) }
+    var customCategory by remember { mutableStateOf(goal.customCategory) }
+    var expanded by remember { mutableStateOf(false) }
+    var showAddCategoryField by remember { mutableStateOf(false) }
+    var newCategoryName by remember { mutableStateOf("") }
+
+    val displayCategory = customCategory ?: category.name.replace("_", " ")
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit Goal") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Goal Name") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = target, onValueChange = { target = it }, label = { Text("Target Amount") }, prefix = { Text("£") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = currentAmount, onValueChange = { currentAmount = it }, label = { Text("Current Amount Saved") }, prefix = { Text("£") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
+                ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+                    OutlinedTextField(value = displayCategory, onValueChange = {}, readOnly = true, label = { Text("Category") }, modifier = Modifier.fillMaxWidth().menuAnchor())
+                    ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        GoalCategory.entries.forEach { cat ->
+                            DropdownMenuItem(text = { Text(cat.name.replace("_", " ")) }, onClick = { category = cat; customCategory = null; expanded = false })
+                        }
+                        if (customCategories.isNotEmpty()) {
+                            HorizontalDivider()
+                            Text("Custom", modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        customCategories.forEach { custom ->
+                            DropdownMenuItem(text = { Text(custom) }, onClick = { customCategory = custom; expanded = false })
+                        }
+                        HorizontalDivider()
+                        DropdownMenuItem(text = { Text("+ Add Custom Category", color = MaterialTheme.colorScheme.primary) }, onClick = { showAddCategoryField = true; expanded = false })
+                    }
+                }
+                if (showAddCategoryField) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = newCategoryName,
+                            onValueChange = { newCategoryName = it },
+                            label = { Text("New Category") },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                        Button(onClick = {
+                            if (newCategoryName.isNotBlank()) {
+                                onAddCustomCategory(newCategoryName)
+                                customCategory = newCategoryName
+                                newCategoryName = ""
+                                showAddCategoryField = false
+                            }
+                        }) { Text("Add") }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                if (name.isNotBlank()) {
+                    onSave(goal.copy(
+                        name = name,
+                        targetAmount = target.toDoubleOrNull() ?: goal.targetAmount,
+                        currentAmount = currentAmount.toDoubleOrNull() ?: goal.currentAmount,
+                        category = category,
+                        customCategory = customCategory
+                    ))
+                }
+            }) { Text("Save") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
@@ -1217,7 +1591,7 @@ fun SettingsScreen(
                                 Text(
                                     if (showToken) currentToken!! else "••••••••••••${currentToken!!.takeLast(4)}",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color.Gray
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             Row {
@@ -1230,7 +1604,7 @@ fun SettingsScreen(
                             }
                         }
                     } else {
-                        Text("Enter your GitHub token to sync across devices:", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                        Text("Enter your GitHub token to sync across devices:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.height(8.dp))
                         OutlinedTextField(
                             value = tokenInput,
@@ -1245,8 +1619,9 @@ fun SettingsScreen(
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(
                                 onClick = {
-                                    if (tokenInput.isNotBlank()) {
-                                        onSaveToken(tokenInput)
+                                    val trimmedToken = tokenInput.trim()
+                                    if (trimmedToken.isNotBlank()) {
+                                        onSaveToken(trimmedToken)
                                         tokenInput = ""
                                     }
                                 },
@@ -1288,10 +1663,18 @@ fun SettingsScreen(
                     })
 
                     if (hasToken) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "Sync downloads the latest data from cloud. Use when switching between browsers/devices.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                         Spacer(Modifier.height(12.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = onSync) { Text("Sync Now") }
-                            OutlinedButton(onClick = onForceRefresh) { Text("Force Refresh") }
+                        Button(
+                            onClick = onForceRefresh,
+                            enabled = syncStatus !is SyncStatus.Syncing
+                        ) {
+                            Text(if (syncStatus is SyncStatus.Syncing) "Syncing..." else "Sync from Cloud")
                         }
                     }
                 }
@@ -1307,15 +1690,15 @@ fun SettingsScreen(
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("How to get a GitHub Token", fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(8.dp))
-                    Text("1. Go to github.com → Settings → Developer settings → Personal access tokens → Fine-grained tokens", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Text("1. Go to github.com → Settings → Developer settings → Personal access tokens → Fine-grained tokens", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(4.dp))
-                    Text("2. Click 'Generate new token'", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Text("2. Click 'Generate new token'", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(4.dp))
-                    Text("3. Give it a name like 'WealthMate'", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Text("3. Give it a name like 'WealthMate'", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(4.dp))
-                    Text("4. Under 'Account permissions' → 'Gists' → Select 'Read and write'", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Text("4. Under 'Account permissions' → 'Gists' → Select 'Read and write'", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(4.dp))
-                    Text("5. Click 'Generate token' and copy it", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Text("5. Click 'Generate token' and copy it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(12.dp))
                     Text("💡 Share this same token with your partner so you both see the same data!", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                 }
@@ -1331,10 +1714,10 @@ fun SettingsScreen(
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("About WealthMate", fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(8.dp))
-                    Text("Version 2.0", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                    Text("Your data is stored locally and synced to a private GitHub Gist.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Text("Version 2.0", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Your data is stored locally and synced to a private GitHub Gist.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(8.dp))
-                    Text("Data is encrypted in transit and only accessible with your token.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    Text("Data is encrypted in transit and only accessible with your token.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }

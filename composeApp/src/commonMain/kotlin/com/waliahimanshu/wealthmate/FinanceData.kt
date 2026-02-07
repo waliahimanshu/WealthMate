@@ -15,6 +15,8 @@ data class HouseholdFinances(
     val sharedAccounts: List<SavingsAccount> = emptyList(), // Joint accounts
     val sharedOutgoings: List<Outgoing> = emptyList(), // Shared bills (rent, utilities)
     val mortgage: MortgageInfo? = null,
+    val customOutgoingCategories: List<String> = emptyList(), // User-defined categories
+    val customGoalCategories: List<String> = emptyList(), // User-defined goal categories
     val createdAt: Long = currentTimeMillis(),
     val updatedAt: Long = currentTimeMillis()
 ) {
@@ -83,6 +85,7 @@ data class SharedGoal(
     val currentAmount: Double = 0.0,
     val targetDate: Long? = null, // Optional deadline
     val category: GoalCategory = GoalCategory.OTHER,
+    val customCategory: String? = null, // User-defined category (takes precedence if set)
     val contributions: List<GoalContribution> = emptyList(),
     val linkedAccountId: String? = null, // Link to a savings account if desired
     val createdAt: Long = currentTimeMillis(),
@@ -101,6 +104,9 @@ data class SharedGoal(
             val monthsRemaining = ((targetDate - currentTimeMillis()) / (30L * 24 * 60 * 60 * 1000)).toInt()
             return if (monthsRemaining > 0) remainingAmount / monthsRemaining else remainingAmount
         }
+
+    val displayCategory: String
+        get() = customCategory ?: category.name.replace("_", " ")
 }
 
 @Serializable
@@ -138,12 +144,16 @@ data class Outgoing(
     val id: String = generateId(),
     val name: String,
     val amount: Double,
-    val category: OutgoingCategory,
+    val category: OutgoingCategory = OutgoingCategory.OTHER,
+    val customCategory: String? = null, // User-defined category (takes precedence if set)
     val isRecurring: Boolean = true,
     val frequency: PaymentFrequency = PaymentFrequency.MONTHLY,
     val ownerId: String? = null, // null = shared, otherwise member ID
     val notes: String = ""
-)
+) {
+    val displayCategory: String
+        get() = customCategory ?: category.name.replace("_", " ")
+}
 
 @Serializable
 enum class OutgoingCategory {
@@ -189,7 +199,11 @@ enum class OutgoingCategory {
     // Other
     CHARITY,
     PETS,
-    OTHER
+    OTHER,
+    KIDS_ACTIVITIES
+
+
+
 }
 
 @Serializable

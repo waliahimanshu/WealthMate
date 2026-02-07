@@ -55,6 +55,7 @@ kotlin {
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.kotlinx.json)
             implementation(libs.kotlinx.coroutines.core)
+            implementation(libs.materialKolor)
         }
         val wasmJsMain by getting {
             dependencies {

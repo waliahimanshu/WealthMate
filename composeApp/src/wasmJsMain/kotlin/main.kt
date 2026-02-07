@@ -23,7 +23,7 @@ fun main() {
         LaunchedEffect(Unit) {
             currentToken = localStorage.loadToken()
             if (currentToken != null) {
-                gistStorage = GistStorage(currentToken!!)
+                gistStorage = GistStorage(currentToken!!, localStorage)
             }
             repository = FinanceRepository(localStorage, gistStorage)
             repository?.initialize()
@@ -34,7 +34,7 @@ fun main() {
             scope.launch {
                 localStorage.saveToken(token)
                 currentToken = token
-                gistStorage = GistStorage(token)
+                gistStorage = GistStorage(token, localStorage)
                 // Recreate repository with new Gist storage
                 repository = FinanceRepository(localStorage, gistStorage)
                 repository?.initialize()
@@ -44,6 +44,7 @@ fun main() {
         fun clearToken() {
             scope.launch {
                 localStorage.clearToken()
+                localStorage.clearGistId() // Clear cached Gist ID when token is removed
                 currentToken = null
                 gistStorage = null
                 // Recreate repository without Gist storage

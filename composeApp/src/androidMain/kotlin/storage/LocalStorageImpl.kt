@@ -21,6 +21,7 @@ class LocalStorageImpl(private val context: Context) : LocalStorage {
         private const val PREFS_NAME = "wealthmate_prefs"
         private const val DATA_KEY = "wealthmate_household_data"
         private const val TOKEN_KEY = "wealthmate_github_token"
+        private const val GIST_ID_KEY = "wealthmate_gist_id"
     }
 
     override suspend fun loadData(): HouseholdFinances? {
@@ -55,5 +56,17 @@ class LocalStorageImpl(private val context: Context) : LocalStorage {
 
     override suspend fun clearToken() {
         prefs.edit().remove(TOKEN_KEY).apply()
+    }
+
+    override suspend fun loadGistId(): String? {
+        return prefs.getString(GIST_ID_KEY, null)
+    }
+
+    override suspend fun saveGistId(gistId: String) {
+        prefs.edit().putString(GIST_ID_KEY, gistId).apply()
+    }
+
+    override suspend fun clearGistId() {
+        prefs.edit().remove(GIST_ID_KEY).apply()
     }
 }

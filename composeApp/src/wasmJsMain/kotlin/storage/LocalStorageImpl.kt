@@ -16,6 +16,7 @@ class LocalStorageImpl : LocalStorage {
     companion object {
         private const val DATA_KEY = "wealthmate_household_data"
         private const val TOKEN_KEY = "wealthmate_github_token"
+        private const val GIST_ID_KEY = "wealthmate_gist_id"
     }
 
     override suspend fun loadData(): HouseholdFinances? {
@@ -51,6 +52,18 @@ class LocalStorageImpl : LocalStorage {
 
     override suspend fun clearToken() {
         localStorage.removeItem(TOKEN_KEY)
+    }
+
+    override suspend fun loadGistId(): String? {
+        return localStorage.getItem(GIST_ID_KEY)
+    }
+
+    override suspend fun saveGistId(gistId: String) {
+        localStorage.setItem(GIST_ID_KEY, gistId)
+    }
+
+    override suspend fun clearGistId() {
+        localStorage.removeItem(GIST_ID_KEY)
     }
 }
 

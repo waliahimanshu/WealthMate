@@ -106,6 +106,7 @@ class FinanceRepository(
 
     /**
      * Update data - saves to local and syncs to cloud.
+     * Now properly awaits cloud sync before showing success.
      */
     suspend fun updateData(transform: (HouseholdFinances) -> HouseholdFinances) {
         val current = _data.value ?: createDefaultHousehold()
@@ -114,13 +115,15 @@ class FinanceRepository(
         _data.value = updated
         localStorage.saveData(updated)
 
-        // Sync to cloud in background
+        // Sync to cloud and wait for result
         if (gistStorage != null) {
-            try {
-                gistStorage.saveData(updated)
-                _syncStatus.value = SyncStatus.Success("Saved")
-            } catch (e: Exception) {
-                _syncStatus.value = SyncStatus.Error("Local saved, cloud sync failed")
+            _syncStatus.value = SyncStatus.Syncing
+            val result = gistStorage.saveData(updated)
+            result.onSuccess {
+                _syncStatus.value = SyncStatus.Success("Saved to cloud")
+            }
+            result.onFailure { e ->
+                _syncStatus.value = SyncStatus.Error("Local saved, cloud failed: ${e.message}")
             }
         }
     }
@@ -134,10 +137,13 @@ class FinanceRepository(
         localStorage.saveData(updated)
 
         if (gistStorage != null) {
-            try {
-                gistStorage.saveData(updated)
-            } catch (_: Exception) {
-                // Ignore cloud errors on set
+            _syncStatus.value = SyncStatus.Syncing
+            val result = gistStorage.saveData(updated)
+            result.onSuccess {
+                _syncStatus.value = SyncStatus.Success("Saved to cloud")
+            }
+            result.onFailure { e ->
+                _syncStatus.value = SyncStatus.Error("Cloud sync failed: ${e.message}")
             }
         }
     }
@@ -191,4 +197,7 @@ interface LocalStorage {
     suspend fun loadToken(): String?
     suspend fun saveToken(token: String)
     suspend fun clearToken()
+    suspend fun loadGistId(): String?
+    suspend fun saveGistId(gistId: String)
+    suspend fun clearGistId()
 }

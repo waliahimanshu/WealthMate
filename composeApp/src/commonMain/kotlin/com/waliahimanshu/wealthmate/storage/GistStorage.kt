@@ -17,8 +17,11 @@ import kotlinx.serialization.json.Json
  * Data is stored in a secret Gist (only visible to the token owner).
  */
 class GistStorage(
-    private val token: String
+    token: String,
+    private val localStorage: LocalStorage? = null
 ) {
+    // Trim whitespace from token to avoid "invalid header char" errors
+    private val token: String = token.trim()
     private val json = Json {
         ignoreUnknownKeys = true
         prettyPrint = true
@@ -35,13 +38,16 @@ class GistStorage(
     private val gistFileName = "wealthmate_data.json"
     private val gistDescription = "WealthMate Finance Data (Auto-synced)"
 
+    // In-memory cache of Gist ID
+    private var cachedGistId: String? = null
+
     /**
      * Load finance data from Gist.
      * Returns null if no Gist exists yet or on error.
      */
     suspend fun loadData(): Result<HouseholdFinances?> {
         return try {
-            val gistId = findExistingGist()
+            val gistId = getOrFindGistId()
             if (gistId == null) {
                 Result.success(null)
             } else {
@@ -65,12 +71,14 @@ class GistStorage(
     suspend fun saveData(data: HouseholdFinances): Result<Unit> {
         return try {
             val content = json.encodeToString(data)
-            val existingGistId = findExistingGist()
+            val existingGistId = getOrFindGistId()
 
             if (existingGistId != null) {
                 updateGist(existingGistId, content)
             } else {
-                createGist(content)
+                val newGistId = createGist(content)
+                cachedGistId = newGistId
+                localStorage?.saveGistId(newGistId)
             }
             Result.success(Unit)
         } catch (e: Exception) {
@@ -79,9 +87,33 @@ class GistStorage(
     }
 
     /**
-     * Find existing WealthMate Gist by description.
+     * Get cached Gist ID or find it from API.
+     * Priority: memory cache -> local storage -> API search
      */
-    private suspend fun findExistingGist(): String? {
+    private suspend fun getOrFindGistId(): String? {
+        // 1. Return from memory cache
+        cachedGistId?.let { return it }
+
+        // 2. Try to load from local storage
+        val storedId = localStorage?.loadGistId()
+        if (storedId != null) {
+            cachedGistId = storedId
+            return storedId
+        }
+
+        // 3. Search via API as last resort
+        val foundId = searchForGistInApi()
+        if (foundId != null) {
+            cachedGistId = foundId
+            localStorage?.saveGistId(foundId)
+        }
+        return foundId
+    }
+
+    /**
+     * Find existing WealthMate Gist by description via API.
+     */
+    private suspend fun searchForGistInApi(): String? {
         val response: HttpResponse = client.get("$baseUrl/gists") {
             header("Authorization", "Bearer $token")
             header("Accept", "application/vnd.github+json")
@@ -114,9 +146,9 @@ class GistStorage(
     }
 
     /**
-     * Create a new secret Gist.
+     * Create a new secret Gist. Returns the new Gist ID.
      */
-    private suspend fun createGist(content: String) {
+    private suspend fun createGist(content: String): String {
         val request = CreateGistRequest(
             description = gistDescription,
             public = false,
@@ -134,6 +166,9 @@ class GistStorage(
         if (!response.status.isSuccess()) {
             throw Exception("Failed to create gist: ${response.status}")
         }
+
+        val createdGist: GistResponse = response.body()
+        return createdGist.id
     }
 
     /**
