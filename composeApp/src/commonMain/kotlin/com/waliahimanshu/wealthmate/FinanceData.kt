@@ -15,8 +15,10 @@ data class HouseholdFinances(
     val sharedAccounts: List<SavingsAccount> = emptyList(), // Joint accounts
     val sharedOutgoings: List<Outgoing> = emptyList(), // Shared bills (rent, utilities)
     val mortgage: MortgageInfo? = null,
+    val investments: List<Investment> = emptyList(), // All investments (personal + kids)
     val customOutgoingCategories: List<String> = emptyList(), // User-defined categories
     val customGoalCategories: List<String> = emptyList(), // User-defined goal categories
+    val customInvestmentCategories: List<String> = emptyList(), // User-defined investment categories
     val createdAt: Long = currentTimeMillis(),
     val updatedAt: Long = currentTimeMillis()
 ) {
@@ -53,6 +55,49 @@ data class HouseholdFinances(
 
     val goalsProgress: Double
         get() = if (totalGoalsTarget > 0) (totalGoalsSaved / totalGoalsTarget) * 100 else 0.0
+
+    // Investment computed properties
+    val totalMonthlyInvestments: Double
+        get() = investments.sumOf { it.monthlyContribution }
+
+    val totalPortfolioValue: Double
+        get() = investments.sumOf { it.currentValue }
+
+    val totalInvested: Double
+        get() = investments.sumOf { it.totalContributed }
+
+    val kidsInvestments: List<Investment>
+        get() = investments.filter { it.isForKids }
+
+    val adultInvestments: List<Investment>
+        get() = investments.filter { !it.isForKids }
+
+    // All savings combined (shared + individual members)
+    val allSavings: List<SavingsAccount>
+        get() = sharedAccounts + members.flatMap { it.savings }
+
+    // Easy Access Savings - money you can withdraw immediately
+    val easyAccessSavings: Double
+        get() {
+            val easyTypes = listOf(
+                UKAccountType.EASY_ACCESS,
+                UKAccountType.CURRENT_ACCOUNT,
+                UKAccountType.CASH_ISA,
+                UKAccountType.REGULAR_SAVER
+            )
+            return allSavings.filter { it.accountType in easyTypes }.sumOf { it.balance }
+        }
+
+    // Locked Savings - money in fixed terms or notice accounts
+    val lockedSavings: Double
+        get() {
+            val lockedTypes = listOf(
+                UKAccountType.FIXED_TERM,
+                UKAccountType.NOTICE_ACCOUNT,
+                UKAccountType.PREMIUM_BONDS
+            )
+            return allSavings.filter { it.accountType in lockedTypes }.sumOf { it.balance }
+        }
 }
 
 /**
@@ -296,6 +341,71 @@ enum class MortgageType {
     REPAYMENT,
     INTEREST_ONLY,
     PART_AND_PART
+}
+
+/**
+ * Investment tracking - for ISAs, Trading 212, Junior ISAs, etc.
+ */
+@Serializable
+data class Investment(
+    val id: String = generateId(),
+    val name: String,                         // "ISA 2024", "Trading Account"
+    val fundName: String = "",                // "Vanguard S&P 500 ETF", "FTSE Global All Cap"
+    val provider: String,                     // "Trading 212", "Vanguard", "Hargreaves Lansdown"
+    val accountType: UKAccountType,           // STOCKS_SHARES_ISA, JUNIOR_ISA, GENERAL_INVESTMENT
+
+    // Contribution tracking
+    val contributionAmount: Double,           // How much you invest per period
+    val frequency: InvestmentFrequency,       // MONTHLY, ONE_TIME, etc.
+
+    // Portfolio value tracking (manually updated)
+    val currentValue: Double = 0.0,           // Current portfolio value
+    val totalContributed: Double = 0.0,       // Total amount invested over time
+
+    // Ownership
+    val ownerId: String? = null,              // Member ID (null = household)
+    val ownerName: String? = null,
+    val isForKids: Boolean = false,           // Junior ISA / kids investment
+
+    // Metadata
+    val assetClass: AssetClass = AssetClass.STOCKS,
+    val startDate: Long = currentTimeMillis(),
+    val lastUpdated: Long = currentTimeMillis(),
+    val notes: String = ""
+) {
+    val monthlyContribution: Double
+        get() = when (frequency) {
+            InvestmentFrequency.ONE_TIME -> 0.0
+            InvestmentFrequency.WEEKLY -> contributionAmount * 52 / 12
+            InvestmentFrequency.MONTHLY -> contributionAmount
+            InvestmentFrequency.QUARTERLY -> contributionAmount / 3
+            InvestmentFrequency.ANNUALLY -> contributionAmount / 12
+        }
+
+    val gainLoss: Double
+        get() = currentValue - totalContributed
+
+    val gainLossPercent: Double
+        get() = if (totalContributed > 0) ((currentValue - totalContributed) / totalContributed) * 100 else 0.0
+
+    val displayFrequency: String
+        get() = when (frequency) {
+            InvestmentFrequency.ONE_TIME -> "One-time"
+            InvestmentFrequency.WEEKLY -> "Weekly"
+            InvestmentFrequency.MONTHLY -> "Monthly"
+            InvestmentFrequency.QUARTERLY -> "Quarterly"
+            InvestmentFrequency.ANNUALLY -> "Annually"
+        }
+}
+
+@Serializable
+enum class InvestmentFrequency {
+    ONE_TIME, WEEKLY, MONTHLY, QUARTERLY, ANNUALLY
+}
+
+@Serializable
+enum class AssetClass {
+    STOCKS, BONDS, ETF, CRYPTO, CASH, PROPERTY, OTHER
 }
 
 // Utility functions
