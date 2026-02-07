@@ -3,6 +3,7 @@ package com.waliahimanshu.wealthmate.storage
 import com.waliahimanshu.wealthmate.HouseholdFinances
 import io.ktor.client.*
 import io.ktor.client.call.*
+import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -32,6 +33,10 @@ class GistStorage(
         install(ContentNegotiation) {
             json(json)
         }
+        install(HttpTimeout) {
+            requestTimeoutMillis = 30000  // 30 seconds total request timeout
+            connectTimeoutMillis = 10000  // 10 seconds to establish connection
+        }
     }
 
     private val baseUrl = "https://api.github.com"
@@ -47,19 +52,29 @@ class GistStorage(
      */
     suspend fun loadData(): Result<HouseholdFinances?> {
         return try {
+            println("GistStorage: Loading data from cloud...")
             val gistId = getOrFindGistId()
             if (gistId == null) {
+                println("GistStorage: No gist found, returning null")
                 Result.success(null)
             } else {
+                println("GistStorage: Fetching gist content...")
                 val gist = getGist(gistId)
                 val content = gist.files[gistFileName]?.content
                 if (content != null) {
-                    Result.success(json.decodeFromString<HouseholdFinances>(content))
+                    val data = json.decodeFromString<HouseholdFinances>(content)
+                    println("GistStorage: Loaded data - members: ${data.members.size}, investments: ${data.investments.size}")
+                    Result.success(data)
                 } else {
+                    println("GistStorage: Gist exists but file content is null")
                     Result.success(null)
                 }
             }
+        } catch (e: HttpRequestTimeoutException) {
+            println("GistStorage: Load timeout - ${e.message}")
+            Result.failure(Exception("Request timed out. Check your internet connection."))
         } catch (e: Exception) {
+            println("GistStorage: Load failed - ${e::class.simpleName}: ${e.message}")
             Result.failure(e)
         }
     }
@@ -71,17 +86,26 @@ class GistStorage(
     suspend fun saveData(data: HouseholdFinances): Result<Unit> {
         return try {
             val content = json.encodeToString(data)
+            println("GistStorage: Saving data - members: ${data.members.size}, investments: ${data.investments.size}, savings: ${data.allSavings.size}")
+
             val existingGistId = getOrFindGistId()
+            println("GistStorage: Using Gist ID: $existingGistId")
 
             if (existingGistId != null) {
                 updateGist(existingGistId, content)
+                println("GistStorage: Successfully updated existing gist")
             } else {
                 val newGistId = createGist(content)
                 cachedGistId = newGistId
                 localStorage?.saveGistId(newGistId)
+                println("GistStorage: Created new gist with ID: $newGistId")
             }
             Result.success(Unit)
+        } catch (e: HttpRequestTimeoutException) {
+            println("GistStorage: Request timeout - ${e.message}")
+            Result.failure(Exception("Request timed out. Check your internet connection."))
         } catch (e: Exception) {
+            println("GistStorage: Save failed - ${e::class.simpleName}: ${e.message}")
             Result.failure(e)
         }
     }
@@ -112,20 +136,30 @@ class GistStorage(
 
     /**
      * Find existing WealthMate Gist by description via API.
+     * Fetches up to 100 gists to handle users with many gists.
      */
     private suspend fun searchForGistInApi(): String? {
-        val response: HttpResponse = client.get("$baseUrl/gists") {
+        println("GistStorage: Searching for existing gist...")
+        val response: HttpResponse = client.get("$baseUrl/gists?per_page=100") {
             header("Authorization", "Bearer $token")
             header("Accept", "application/vnd.github+json")
             header("X-GitHub-Api-Version", "2022-11-28")
         }
 
         if (!response.status.isSuccess()) {
+            println("GistStorage: Failed to list gists - ${response.status}")
             throw Exception("Failed to list gists: ${response.status}")
         }
 
         val gists: List<GistSummary> = response.body()
-        return gists.find { it.description == gistDescription }?.id
+        println("GistStorage: Found ${gists.size} gists, searching for WealthMate...")
+        val found = gists.find { it.description == gistDescription }
+        if (found != null) {
+            println("GistStorage: Found matching gist: ${found.id}")
+        } else {
+            println("GistStorage: No matching gist found")
+        }
+        return found?.id
     }
 
     /**
