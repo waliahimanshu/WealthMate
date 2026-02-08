@@ -394,18 +394,6 @@ fun DashboardScreen(
                 }
             }
 
-            // ============================================
-            // SECTION 6: MEMBERS
-            // ============================================
-            if (data.members.isNotEmpty()) {
-                item {
-                    Spacer(Modifier.height(12.dp))
-                    Text("Members", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                }
-                items(data.members) { member ->
-                    MemberSummaryCard(member, onClick = { onMemberSelected(member.id) })
-                }
-            }
         } else {
             // Individual member view
             val member = data.members.find { it.id == selectedMemberId }
@@ -486,50 +474,56 @@ fun InvestmentsSummaryCard(data: HouseholdFinances) {
     val gainLoss = totalValue - totalContributed
     val gainPercent = if (totalContributed > 0) (gainLoss / totalContributed * 100) else 0.0
 
+    // Group by account type (ISA, Pension, SIPP, etc.)
+    val typeBreakdown = data.investments
+        .groupBy { it.accountType }
+        .map { (type, investments) -> type.name.replace("_", " ") to investments.sumOf { it.currentValue } }
+        .filter { it.second > 0 }
+        .sortedByDescending { it.second }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            // Header with total portfolio value
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text("Portfolio Value", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(formatCurrency(totalValue), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                }
-
-                // Mini pie chart for asset allocation
-                if (data.investments.isNotEmpty()) {
-                    val assetSlices = data.investments
-                        .groupBy { it.assetClass }
-                        .map { (assetClass, investments) ->
-                            PieSlice(
-                                label = assetClass.name,
-                                value = investments.sumOf { it.currentValue },
-                                color = ChartColors.getColor(AssetClass.entries.indexOf(assetClass))
-                            )
-                        }
-                        .filter { it.value > 0 }
-
-                    CompactPieChart(slices = assetSlices)
-                }
+                Text("Investments", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                Text(formatCurrency(totalValue), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(12.dp))
 
+            // Breakdown by account type
+            if (typeBreakdown.isNotEmpty()) {
+                typeBreakdown.forEach { (type, value) ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(type, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(formatCurrency(value), fontWeight = FontWeight.SemiBold)
+                    }
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            }
+
+            // Monthly contributions + Gain/Loss
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Text("Monthly Contributions", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Monthly", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text("${formatCurrency(data.totalMonthlyInvestments)}/mo", fontWeight = FontWeight.Bold)
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    Text("Total Gain/Loss", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Gain/Loss", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     val gainColor = if (gainLoss >= 0) Color(0xFF4CAF50) else Color(0xFFF44336)
                     Text(
                         "${if (gainLoss >= 0) "+" else ""}${formatCurrency(gainLoss)} (${if (gainLoss >= 0) "+" else ""}${gainPercent.roundToInt()}%)",
@@ -544,20 +538,13 @@ fun InvestmentsSummaryCard(data: HouseholdFinances) {
 
 @Composable
 fun OutgoingsSummaryCard(data: HouseholdFinances) {
-    // Group outgoings by category for pie chart
     val allOutgoings = data.sharedOutgoings + data.members.flatMap { it.outgoings }
     val categoryTotals = allOutgoings
         .groupBy { it.displayCategory }
-        .map { (category, outgoings) ->
-            PieSlice(
-                label = category,
-                value = outgoings.sumOf { it.amount },
-                color = ChartColors.getColor(allOutgoings.indexOfFirst { it.displayCategory == category })
-            )
-        }
-        .filter { it.value > 0 }
-        .sortedByDescending { it.value }
-        .take(6) // Top 6 categories
+        .map { (category, outgoings) -> category to outgoings.sumOf { it.amount } }
+        .filter { it.second > 0 }
+        .sortedByDescending { it.second }
+        .take(6)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -568,32 +555,13 @@ fun OutgoingsSummaryCard(data: HouseholdFinances) {
             Spacer(Modifier.height(8.dp))
 
             if (categoryTotals.isNotEmpty()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    CompactPieChart(slices = categoryTotals)
-                    Spacer(Modifier.width(16.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        categoryTotals.take(4).forEach { slice ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(8.dp)
-                                        .clip(CircleShape)
-                                        .background(slice.color)
-                                )
-                                Text(
-                                    "${slice.label}: ${formatCurrency(slice.value)}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
+                categoryTotals.forEach { (category, amount) ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(category, style = MaterialTheme.typography.bodyMedium)
+                        Text(formatCurrency(amount), fontWeight = FontWeight.SemiBold, color = Color(0xFFF44336))
                     }
                 }
             } else {
@@ -605,19 +573,12 @@ fun OutgoingsSummaryCard(data: HouseholdFinances) {
 
 @Composable
 fun SavingsSummaryCard(data: HouseholdFinances) {
-    // Group savings by account type for pie chart
     val allSavings = data.sharedAccounts + data.members.flatMap { it.savings }
     val typeTotals = allSavings
         .groupBy { it.accountType }
-        .map { (accountType, accounts) ->
-            PieSlice(
-                label = accountType.name.replace("_", " "),
-                value = accounts.sumOf { it.balance },
-                color = ChartColors.getColor(UKAccountType.entries.indexOf(accountType))
-            )
-        }
-        .filter { it.value > 0 }
-        .sortedByDescending { it.value }
+        .map { (accountType, accounts) -> accountType.name.replace("_", " ") to accounts.sumOf { it.balance } }
+        .filter { it.second > 0 }
+        .sortedByDescending { it.second }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -628,32 +589,13 @@ fun SavingsSummaryCard(data: HouseholdFinances) {
             Spacer(Modifier.height(8.dp))
 
             if (typeTotals.isNotEmpty()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    CompactPieChart(slices = typeTotals)
-                    Spacer(Modifier.width(16.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        typeTotals.take(4).forEach { slice ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(8.dp)
-                                        .clip(CircleShape)
-                                        .background(slice.color)
-                                )
-                                Text(
-                                    "${slice.label}: ${formatCurrency(slice.value)}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
+                typeTotals.forEach { (type, amount) ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(type, style = MaterialTheme.typography.bodyMedium)
+                        Text(formatCurrency(amount), fontWeight = FontWeight.SemiBold, color = Color(0xFF4CAF50))
                     }
                 }
             } else {
@@ -964,8 +906,10 @@ fun MembersScreen(
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(data.members) { member ->
-                MemberCard(
+                val memberInvestments = data.investments.filter { it.ownerId == member.id }
+                MemberTableCard(
                     member = member,
+                    memberInvestments = memberInvestments,
                     onEdit = { editingMember = member },
                     onDelete = { onDeleteMember(member.id) }
                 )
@@ -996,8 +940,9 @@ fun MembersScreen(
 }
 
 @Composable
-fun MemberCard(
+fun MemberTableCard(
     member: HouseholdMember,
+    memberInvestments: List<Investment>,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -1006,6 +951,7 @@ fun MemberCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            // Header with avatar, name, and action buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -1017,10 +963,7 @@ fun MemberCard(
                     Text(member.name.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
                 }
                 Spacer(Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(member.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                    Text("Salary: ${formatCurrency(member.salary)}/mo", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+                Text(member.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                 IconButton(onClick = onEdit) {
                     Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary)
                 }
@@ -1028,12 +971,66 @@ fun MemberCard(
                     Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
                 }
             }
-            Spacer(Modifier.height(12.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                StatItem("Outgoings", formatCurrency(member.totalOutgoings), Color(0xFFF44336))
-                StatItem("Savings", formatCurrency(member.totalSavings), Color(0xFF4CAF50))
-                StatItem("Net", formatCurrency(member.netMonthly), Color(0xFF2196F3))
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+
+            // Salary
+            TableRow(label = "Salary", value = "${formatCurrency(member.salary)}/mo", valueColor = Color(0xFF4CAF50), isBold = true)
+
+            // Outgoings section
+            if (member.outgoings.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                Text("OUTGOINGS", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(4.dp))
+                member.outgoings.forEach { outgoing ->
+                    TableRow(
+                        label = outgoing.displayCategory,
+                        value = formatCurrency(outgoing.amount),
+                        valueColor = Color(0xFFF44336),
+                        indent = true
+                    )
+                }
+                TableRow(label = "Total Outgoings", value = formatCurrency(member.totalOutgoings), valueColor = Color(0xFFF44336), isBold = true)
             }
+
+            // Savings section
+            if (member.savings.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                Text("SAVINGS", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(4.dp))
+                member.savings.forEach { account ->
+                    TableRow(
+                        label = "${account.name} (${account.accountType.name.replace("_", " ")})",
+                        value = formatCurrency(account.balance),
+                        valueColor = Color(0xFF4CAF50),
+                        indent = true
+                    )
+                }
+                TableRow(label = "Total Savings", value = formatCurrency(member.totalSavings), valueColor = Color(0xFF4CAF50), isBold = true)
+            }
+
+            // Investments section
+            if (memberInvestments.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                Text("INVESTMENTS", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(4.dp))
+                memberInvestments.forEach { investment ->
+                    TableRow(
+                        label = "${investment.name} (${investment.accountType.name.replace("_", " ")})",
+                        value = formatCurrency(investment.currentValue),
+                        valueColor = MaterialTheme.colorScheme.primary,
+                        indent = true
+                    )
+                }
+                val totalInvestments = memberInvestments.sumOf { it.currentValue }
+                TableRow(label = "Total Investments", value = formatCurrency(totalInvestments), valueColor = MaterialTheme.colorScheme.primary, isBold = true)
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            // Net Monthly
+            val netColor = if (member.netMonthly >= 0) Color(0xFF2196F3) else Color(0xFFF44336)
+            TableRow(label = "Net Monthly", value = formatCurrency(member.netMonthly), valueColor = netColor, isBold = true)
         }
     }
 }
@@ -1043,6 +1040,34 @@ fun StatItem(label: String, value: String, color: Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, fontWeight = FontWeight.Bold, color = color)
         Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+fun TableRow(
+    label: String,
+    value: String,
+    valueColor: Color = Color.Unspecified,
+    indent: Boolean = false,
+    isBold: Boolean = false
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = if (indent) 16.dp else 0.dp, top = 3.dp, bottom = 3.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = if (isBold) FontWeight.Bold else FontWeight.SemiBold,
+            color = valueColor
+        )
     }
 }
 

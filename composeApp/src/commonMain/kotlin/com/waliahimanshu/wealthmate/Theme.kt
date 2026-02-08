@@ -10,8 +10,8 @@ import com.materialkolor.PaletteStyle
 // ============================================================
 
 // Option 1: Teal/Emerald Expressive (default) - Rich green, wealth & growth
-val SeedColor = Color(0xFF006C4C)
-val ThemeStyle = PaletteStyle.Expressive
+//val SeedColor = Color(0xFF006C4C)
+//val ThemeStyle = PaletteStyle.Expressive
 
 // Option 2: Teal/Emerald TonalSpot - Calmer, more subtle green
 // val SeedColor = Color(0xFF006C4C)
@@ -38,8 +38,8 @@ val ThemeStyle = PaletteStyle.Expressive
 // val ThemeStyle = PaletteStyle.Vibrant
 
 // Option 8: Gold/Amber Expressive - Premium wealth, luxury feel
-// val SeedColor = Color(0xFF8B6914)
-// val ThemeStyle = PaletteStyle.Expressive
+ val SeedColor = Color(0xFF8B6914)
+ val ThemeStyle = PaletteStyle.Expressive
 
 // Option 9: Mint Fidelity - Fresh, clean, modern
 // val SeedColor = Color(0xFF00BFA5)
