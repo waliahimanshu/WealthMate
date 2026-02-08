@@ -20,6 +20,24 @@ kotlin {
         }
     }
 
+    jvm("desktop") {
+        @OptIn(ExperimentalKotlinGradlePluginApi::class)
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+        }
+    }
+
+    listOf(
+        iosX64(),
+        iosArm64(),
+        iosSimulatorArm64()
+    ).forEach { iosTarget ->
+        iosTarget.binaries.framework {
+            baseName = "ComposeApp"
+            isStatic = true
+        }
+    }
+
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         moduleName = "wealthmate"
@@ -57,6 +75,13 @@ kotlin {
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.materialKolor)
         }
+        val desktopMain by getting {
+            dependencies {
+                implementation(compose.desktop.currentOs)
+                implementation(libs.ktor.client.cio)
+                implementation(libs.kotlinx.coroutines.swing)
+            }
+        }
         val wasmJsMain by getting {
             dependencies {
                 implementation(compose.runtime)
@@ -64,6 +89,18 @@ kotlin {
                 implementation(compose.material3)
                 implementation(compose.ui)
                 implementation(libs.ktor.client.js)
+            }
+        }
+        val iosX64Main by getting
+        val iosArm64Main by getting
+        val iosSimulatorArm64Main by getting
+        val iosMain by creating {
+            dependsOn(commonMain.get())
+            iosX64Main.dependsOn(this)
+            iosArm64Main.dependsOn(this)
+            iosSimulatorArm64Main.dependsOn(this)
+            dependencies {
+                implementation(libs.ktor.client.darwin)
             }
         }
     }
@@ -103,6 +140,35 @@ android {
     }
     dependencies {
         debugImplementation(compose.uiTooling)
+    }
+}
+
+compose.desktop {
+    application {
+        mainClass = "MainKt"
+
+        nativeDistributions {
+            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
+            packageName = "WealthMate"
+            packageVersion = "1.0.0"
+            description = "Personal Finance Tracker"
+            vendor = "WaliahImanshu"
+
+            macOS {
+                bundleID = "com.waliahimanshu.wealthmate"
+                iconFile.set(project.file("icons/icon.icns"))
+            }
+
+            windows {
+                iconFile.set(project.file("icons/icon.ico"))
+                menuGroup = "WealthMate"
+                upgradeUuid = "b5f3c2d1-4e5f-6a7b-8c9d-0e1f2a3b4c5d"
+            }
+
+            linux {
+                iconFile.set(project.file("icons/icon.png"))
+            }
+        }
     }
 }
 

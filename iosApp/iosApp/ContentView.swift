@@ -1,17 +1,19 @@
 import SwiftUI
-import Shared
+import ComposeApp
+
+struct ComposeView: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> UIViewController {
+        MainViewControllerKt.MainViewController()
+    }
+
+    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
+}
 
 struct ContentView: View {
-    @State private var showContent = false
-
-        let phrases = Greeting().greet()
-
-        var body: some View {
-            List(phrases, id: \.self) {
-                Text($0)
-            }
-        }
-    
+    var body: some View {
+        ComposeView()
+            .ignoresSafeArea(.keyboard) // Compose handles keyboard insets
+    }
 }
 
 struct ContentView_Previews: PreviewProvider {

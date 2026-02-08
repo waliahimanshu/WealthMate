@@ -21,9 +21,9 @@ import com.materialkolor.PaletteStyle
 // val SeedColor = Color(0xFF006C4C)
 // val ThemeStyle = PaletteStyle.Fidelity
 
-// Option 4: Deep Sapphire Expressive - Banking blue, professional trust
-// val SeedColor = Color(0xFF1A5FB4)
-// val ThemeStyle = PaletteStyle.Expressive
+ //Option 4: Deep Sapphire Expressive - Banking blue, professional trust
+ val SeedColor = Color(0xFF1A5FB4)
+ val ThemeStyle = PaletteStyle.Expressive
 
 // Option 5: Deep Sapphire TonalSpot - Classic banking app feel
 // val SeedColor = Color(0xFF1A5FB4)
@@ -38,8 +38,8 @@ import com.materialkolor.PaletteStyle
 // val ThemeStyle = PaletteStyle.Vibrant
 
 // Option 8: Gold/Amber Expressive - Premium wealth, luxury feel
- val SeedColor = Color(0xFF8B6914)
- val ThemeStyle = PaletteStyle.Expressive
+// val SeedColor = Color(0xFF8B6914)
+// val ThemeStyle = PaletteStyle.Expressive
 
 // Option 9: Mint Fidelity - Fresh, clean, modern
 // val SeedColor = Color(0xFF00BFA5)
