@@ -382,20 +382,7 @@ fun DashboardScreen(
             }
 
             // ============================================
-            // SECTION 4: PROJECTED GROWTH
-            // ============================================
-            if (data.investments.isNotEmpty()) {
-                item {
-                    Spacer(Modifier.height(12.dp))
-                    ProjectedGrowthCard(
-                        currentValue = data.totalPortfolioValue,
-                        monthlyContribution = data.totalMonthlyInvestments
-                    )
-                }
-            }
-
-            // ============================================
-            // SECTION 5: GOALS
+            // SECTION 4: GOALS
             // ============================================
             if (data.sharedGoals.isNotEmpty()) {
                 item {
@@ -738,71 +725,47 @@ fun IncomeOutgoingsOverviewCard(data: HouseholdFinances) {
 fun SavingsOverviewCard(data: HouseholdFinances) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Total savings header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Total Savings", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text(
-                    formatCurrency(data.totalSavings),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
+            // Total savings header - prominent
+            Text("Total Savings", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                formatCurrency(data.totalSavings),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
 
             Spacer(Modifier.height(12.dp))
 
-            // Easy Access vs Locked
+            // Cash Savings vs Long-term - side by side
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Easy Access
-                Card(
-                    modifier = Modifier.weight(1f),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF4CAF50).copy(alpha = 0.1f))
-                ) {
-                    Column(
-                        modifier = Modifier.padding(12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text("Easy Access", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(
-                            formatCurrency(data.easyAccessSavings),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF4CAF50)
-                        )
-                        Text("available now", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+                // Cash Savings (Easy Access)
+                Column {
+                    Text("Cash Savings", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        formatCurrency(data.easyAccessSavings),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF4CAF50)
+                    )
+                    Text("Easy access", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
-                Spacer(Modifier.width(8.dp))
-
-                // Locked
-                Card(
-                    modifier = Modifier.weight(1f),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFF9800).copy(alpha = 0.1f))
-                ) {
-                    Column(
-                        modifier = Modifier.padding(12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text("Locked", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(
-                            formatCurrency(data.lockedSavings),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFFFF9800)
-                        )
-                        Text("fixed term", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+                // Long-term Locked
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("Long-term", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        formatCurrency(data.lockedSavings),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFFFF9800)
+                    )
+                    Text("Fixed/Notice", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -1556,7 +1519,8 @@ fun SavingsScreen(
     var editingAccount by remember { mutableStateOf<SavingsAccount?>(null) }
     var editingForMemberId by remember { mutableStateOf<String?>(null) }
 
-    val tabs = listOf("Joint Accounts") + data.members.map { it.name }
+    // Tab indices: 0 = Overview (ALL), 1 = Joint, 2+ = Members
+    val tabs = listOf("Overview", "Joint") + data.members.map { it.name }
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Savings Accounts", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
@@ -1567,12 +1531,17 @@ fun SavingsScreen(
             }
         }
 
-        val currentAccounts = if (selectedTab == 0) {
-            data.sharedAccounts
-        } else {
-            data.members.getOrNull(selectedTab - 1)?.savings ?: emptyList()
+        // Filtering logic: Overview shows ALL, Joint shows shared, Members show individual
+        val currentAccounts = when (selectedTab) {
+            0 -> data.allSavings  // Overview - ALL savings
+            1 -> data.sharedAccounts  // Joint accounts only
+            else -> data.members.getOrNull(selectedTab - 2)?.savings ?: emptyList()
         }
-        val currentMemberId = if (selectedTab == 0) null else data.members.getOrNull(selectedTab - 1)?.id
+        val currentMemberId = when (selectedTab) {
+            0 -> null  // Overview - no specific owner
+            1 -> null  // Joint - shared accounts
+            else -> data.members.getOrNull(selectedTab - 2)?.id
+        }
 
         // Summary card with Easy Access vs Locked
         SavingsOverviewCard(data)
@@ -1597,11 +1566,14 @@ fun SavingsScreen(
             )
         }
 
-        Button(onClick = {
-            addingForMemberId = currentMemberId
-            showAddDialog = true
-        }) {
-            Text("Add Account")
+        // Add button only shown on Joint or Member tabs (not Overview)
+        if (selectedTab > 0) {
+            Button(onClick = {
+                addingForMemberId = currentMemberId
+                showAddDialog = true
+            }) {
+                Text("Add Account")
+            }
         }
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1610,13 +1582,21 @@ fun SavingsScreen(
                     account = account,
                     onEdit = {
                         editingAccount = account
-                        editingForMemberId = currentMemberId
+                        // Find the owner of this account for editing
+                        editingForMemberId = account.ownerId
                     },
                     onDelete = {
-                        if (currentMemberId == null) {
+                        // Determine where this account lives based on ownerId
+                        val accountOwnerId = account.ownerId
+                        if (accountOwnerId == null) {
+                            // Joint/shared account
                             onUpdateSharedAccounts(data.sharedAccounts.filter { it.id != account.id })
                         } else {
-                            onUpdateMemberSavings(currentMemberId, currentAccounts.filter { it.id != account.id })
+                            // Member's personal account
+                            val member = data.members.find { it.id == accountOwnerId }
+                            if (member != null) {
+                                onUpdateMemberSavings(accountOwnerId, member.savings.filter { it.id != account.id })
+                            }
                         }
                     }
                 )
@@ -2218,6 +2198,15 @@ fun InvestmentsScreen(
                 Spacer(Modifier.height(8.dp))
                 Text("Monthly Contributions: ${formatCurrency(totalMonthly)}/mo", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+        }
+
+        // Projected Growth Card
+        if (data.investments.isNotEmpty()) {
+            Spacer(Modifier.height(16.dp))
+            ProjectedGrowthCard(
+                currentValue = data.totalPortfolioValue,
+                monthlyContribution = data.totalMonthlyInvestments
+            )
         }
 
         Button(onClick = { showAddDialog = true }) {
