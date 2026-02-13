@@ -23,7 +23,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.SegmentedButtonDefaults.Icon
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -40,9 +39,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.waliahimanshu.wealthmate.HouseholdFinances
 import com.waliahimanshu.wealthmate.SavingsAccount
-import com.waliahimanshu.wealthmate.SavingsOverviewCard
 import com.waliahimanshu.wealthmate.UKAccountType
-import com.waliahimanshu.wealthmate.formatCurrency
+import com.waliahimanshu.wealthmate.components.formatCurrency
+import com.waliahimanshu.wealthmate.dashboard.SavingsOverviewCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

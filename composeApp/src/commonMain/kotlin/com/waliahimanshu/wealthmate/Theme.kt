@@ -21,9 +21,9 @@ import com.materialkolor.PaletteStyle
 // val SeedColor = Color(0xFF006C4C)
 // val ThemeStyle = PaletteStyle.Fidelity
 
- //Option 4: Deep Sapphire Expressive - Banking blue, professional trust
+ //Option 4: Deep Sapphire Vibrant - Banking blue, professional trust
  val SeedColor = Color(0xFF1A5FB4)
- val ThemeStyle = PaletteStyle.Expressive
+ val ThemeStyle = PaletteStyle.Vibrant
 
 // Option 5: Deep Sapphire TonalSpot - Classic banking app feel
 // val SeedColor = Color(0xFF1A5FB4)
@@ -56,7 +56,7 @@ fun WealthMateTheme(
 ) {
     DynamicMaterialTheme(
         seedColor = SeedColor,
-        useDarkTheme = isDark,
+        isDark = isDark,
         style = ThemeStyle,
         animate = true,
         content = content

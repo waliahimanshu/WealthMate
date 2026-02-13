@@ -1,10 +1,11 @@
 import androidx.compose.runtime.*
 import androidx.compose.ui.ExperimentalComposeUiApi
-import androidx.compose.ui.window.CanvasBasedWindow
+import androidx.compose.ui.window.ComposeViewport
 import com.waliahimanshu.wealthmate.WealthMateApp
 import com.waliahimanshu.wealthmate.storage.FinanceRepository
 import com.waliahimanshu.wealthmate.storage.GistStorage
 import com.waliahimanshu.wealthmate.storage.LocalStorageImpl
+import kotlinx.browser.document
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -14,7 +15,7 @@ fun main() {
     val localStorage = LocalStorageImpl()
     val scope = CoroutineScope(Dispatchers.Default)
 
-    CanvasBasedWindow(canvasElementId = "ComposeTarget", title = "WealthMate") {
+    ComposeViewport(document.body!!) {
         var currentToken by remember { mutableStateOf<String?>(null) }
         var gistStorage by remember { mutableStateOf<GistStorage?>(null) }
         var repository by remember { mutableStateOf<FinanceRepository?>(null) }

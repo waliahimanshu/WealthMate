@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,11 +31,10 @@ import com.waliahimanshu.wealthmate.HouseholdFinances
 import com.waliahimanshu.wealthmate.HouseholdMember
 import com.waliahimanshu.wealthmate.Investment
 import com.waliahimanshu.wealthmate.InvestmentFrequency
-import com.waliahimanshu.wealthmate.ProjectedGrowthCard
 import com.waliahimanshu.wealthmate.UKAccountType
 import com.waliahimanshu.wealthmate.components.*
 import com.waliahimanshu.wealthmate.currentTimeMillis
-import com.waliahimanshu.wealthmate.formatCurrency
+import com.waliahimanshu.wealthmate.dashboard.ProjectedGrowthCard
 import com.waliahimanshu.wealthmate.savings.SavingsScreen
 import com.waliahimanshu.wealthmate.storage.*
 import kotlin.math.roundToInt
