@@ -12,14 +12,18 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.waliahimanshu.wealthmate.*
 import com.waliahimanshu.wealthmate.components.*
+import ir.ehsannarmani.compose_charts.PieChart
+import ir.ehsannarmani.compose_charts.models.Pie
 import kotlin.math.roundToInt
 
 @Composable
@@ -112,6 +116,21 @@ fun DashboardScreen(
             // Income vs Outgoings
             item {
                 IncomeOutgoingsOverviewCard(data)
+            }
+
+            // Expense Breakdown Donut Chart
+            val allOutgoings = data.sharedOutgoings + data.members.flatMap { it.outgoings }
+            if (allOutgoings.isNotEmpty()) {
+                item {
+                    ExpenseBreakdownChart(allOutgoings, data.mortgage)
+                }
+            }
+
+            // Wealth Composition Donut Chart
+            if (data.totalSavings > 0 || data.totalPortfolioValue > 0 || (data.mortgage?.equity ?: 0.0) > 0) {
+                item {
+                    WealthCompositionChart(data)
+                }
             }
 
             // Total Savings
@@ -560,4 +579,152 @@ fun calculateProjectedGrowth(
         futureValueContributions += contributionGrowth
     }
     return futureValueCurrent + futureValueContributions
+}
+
+// ============================================================
+// CHART COMPONENTS
+// ============================================================
+
+private val chartPalette = listOf(
+    Color(0xFF4CAF50), Color(0xFF2196F3), Color(0xFFFF9800),
+    Color(0xFF9C27B0), Color(0xFFF44336), Color(0xFF00BCD4),
+    Color(0xFFFFEB3B), Color(0xFF795548), Color(0xFFE91E63),
+    Color(0xFF607D8B)
+)
+
+@Composable
+fun ExpenseBreakdownChart(outgoings: List<Outgoing>, mortgage: MortgageInfo?) {
+    val categoryTotals = outgoings
+        .groupBy { it.displayCategory }
+        .map { (cat, items) -> cat to items.sumOf { it.amount } }
+        .toMutableList()
+
+    mortgage?.let { categoryTotals.add("Mortgage" to it.monthlyPayment) }
+
+    val sorted = categoryTotals.sortedByDescending { it.second }
+    if (sorted.isEmpty()) return
+
+    val pieData = remember(sorted) {
+        sorted.mapIndexed { i, (label, value) ->
+            Pie(
+                label = label,
+                data = value,
+                color = chartPalette[i % chartPalette.size],
+                selectedColor = chartPalette[i % chartPalette.size].copy(alpha = 0.8f)
+            )
+        }
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Expense Breakdown", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(4.dp))
+            Text("Where your money goes", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(12.dp))
+
+            PieChart(
+                modifier = Modifier.fillMaxWidth().height(180.dp),
+                data = pieData,
+                style = Pie.Style.Stroke(width = 60.dp),
+                selectedScale = 1.1f
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            // Legend - show top categories
+            sorted.take(6).forEachIndexed { i, (label, value) ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier.size(10.dp).clip(CircleShape)
+                            .background(chartPalette[i % chartPalette.size])
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                    Text(formatCurrency(value), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                }
+            }
+            if (sorted.size > 6) {
+                val othersTotal = sorted.drop(6).sumOf { it.second }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color.Gray))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Others (${sorted.size - 6})", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                    Text(formatCurrency(othersTotal), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun WealthCompositionChart(data: HouseholdFinances) {
+    val segments = mutableListOf<Pair<String, Double>>()
+    if (data.totalSavings > 0) segments.add("Savings" to data.totalSavings)
+    if (data.totalPortfolioValue > 0) segments.add("Investments" to data.totalPortfolioValue)
+    val equity = data.mortgage?.equity ?: 0.0
+    if (equity > 0) segments.add("Property Equity" to equity)
+
+    if (segments.isEmpty()) return
+
+    val wealthColors = listOf(Color(0xFF4CAF50), Color(0xFF2196F3), Color(0xFFFF9800))
+
+    val pieData = remember(segments) {
+        segments.mapIndexed { i, (label, value) ->
+            Pie(
+                label = label,
+                data = value,
+                color = wealthColors[i % wealthColors.size],
+                selectedColor = wealthColors[i % wealthColors.size].copy(alpha = 0.8f)
+            )
+        }
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Wealth Composition", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(4.dp))
+            Text("How your wealth is distributed", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(12.dp))
+
+            PieChart(
+                modifier = Modifier.fillMaxWidth().height(180.dp),
+                data = pieData,
+                style = Pie.Style.Stroke(width = 60.dp),
+                selectedScale = 1.1f
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            val total = segments.sumOf { it.second }
+            segments.forEachIndexed { i, (label, value) ->
+                val pct = if (total > 0) (value / total * 100).roundToInt() else 0
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier.size(10.dp).clip(CircleShape)
+                            .background(wealthColors[i % wealthColors.size])
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                    Text("${formatCurrency(value)} ($pct%)", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+    }
 }

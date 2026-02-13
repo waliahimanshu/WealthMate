@@ -37,6 +37,8 @@ import com.waliahimanshu.wealthmate.currentTimeMillis
 import com.waliahimanshu.wealthmate.dashboard.ProjectedGrowthCard
 import com.waliahimanshu.wealthmate.savings.SavingsScreen
 import com.waliahimanshu.wealthmate.storage.*
+import ir.ehsannarmani.compose_charts.PieChart
+import ir.ehsannarmani.compose_charts.models.Pie
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -140,27 +142,10 @@ fun InvestmentsScreen(
             Text("Add Investment")
         }
 
-        // Pie chart for Overview tab
-//        if (selectedTab == 0 && filteredInvestments.isNotEmpty()) {
-//            // Asset class allocation pie chart
-//            val assetAllocation = filteredInvestments
-//                .groupBy { it.assetClass }
-//                .map { (assetClass, investments) ->
-//                    PieSlice(
-//                        label = assetClass.name,
-//                        value = investments.sumOf { it.currentValue },
-//                        color = ChartColors.getColor(AssetClass.entries.indexOf(assetClass))
-//                    )
-//                }
-//                .filter { it.value > 0 }
-//
-//            if (assetAllocation.isNotEmpty()) {
-//                PieChartCard(
-//                    title = "Allocation by Asset Class",
-//                    slices = assetAllocation
-//                )
-//            }
-//        }
+        // Asset class allocation chart
+        if (filteredInvestments.isNotEmpty()) {
+            AssetAllocationChart(filteredInvestments)
+        }
 
         // Investments list
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -806,4 +791,73 @@ fun EditInvestmentDialog(
             TextButton(onClick = onDismiss) { Text("Cancel") }
         }
     )
+}
+
+// ============================================================
+// CHART COMPONENTS
+// ============================================================
+
+private val assetChartColors = listOf(
+    Color(0xFF4CAF50), Color(0xFF2196F3), Color(0xFFFF9800),
+    Color(0xFF9C27B0), Color(0xFFF44336), Color(0xFF00BCD4),
+    Color(0xFF795548)
+)
+
+@Composable
+fun AssetAllocationChart(investments: List<Investment>) {
+    val allocation = investments
+        .groupBy { it.assetClass }
+        .map { (assetClass, invs) -> assetClass.name to invs.sumOf { it.currentValue } }
+        .filter { it.second > 0 }
+        .sortedByDescending { it.second }
+
+    if (allocation.isEmpty()) return
+
+    val total = allocation.sumOf { it.second }
+    val pieData = remember(allocation) {
+        allocation.mapIndexed { i, (label, value) ->
+            Pie(
+                label = label,
+                data = value,
+                color = assetChartColors[i % assetChartColors.size],
+                selectedColor = assetChartColors[i % assetChartColors.size].copy(alpha = 0.8f)
+            )
+        }
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Asset Allocation", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(12.dp))
+
+            PieChart(
+                modifier = Modifier.fillMaxWidth().height(160.dp),
+                data = pieData,
+                style = Pie.Style.Stroke(width = 50.dp),
+                selectedScale = 1.1f
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            allocation.forEachIndexed { i, (label, value) ->
+                val pct = if (total > 0) (value / total * 100).roundToInt() else 0
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier.size(10.dp).clip(CircleShape)
+                            .background(assetChartColors[i % assetChartColors.size])
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                    Text("${formatCurrency(value)} ($pct%)", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+    }
 }

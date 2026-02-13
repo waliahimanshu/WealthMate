@@ -7,17 +7,24 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.waliahimanshu.wealthmate.*
 import com.waliahimanshu.wealthmate.components.formatCurrency
+import ir.ehsannarmani.compose_charts.PieChart
+import ir.ehsannarmani.compose_charts.models.Pie
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,6 +67,11 @@ fun ExpensesScreen(
             showAddDialog = true
         }) {
             Text("Add Expense")
+        }
+
+        // Category breakdown chart
+        if (currentOutgoings.isNotEmpty()) {
+            ExpenseCategoryChart(currentOutgoings)
         }
 
         if (selectedTab == 0) {
@@ -325,6 +337,71 @@ fun EditOutgoingDialog(
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
+}
+
+private val chartPalette = listOf(
+    Color(0xFF4CAF50), Color(0xFF2196F3), Color(0xFFFF9800),
+    Color(0xFF9C27B0), Color(0xFFF44336), Color(0xFF00BCD4),
+    Color(0xFFFFEB3B), Color(0xFF795548), Color(0xFFE91E63),
+    Color(0xFF607D8B)
+)
+
+@Composable
+fun ExpenseCategoryChart(outgoings: List<Outgoing>) {
+    val categoryTotals = outgoings
+        .groupBy { it.displayCategory }
+        .map { (cat, items) -> cat to items.sumOf { it.amount } }
+        .sortedByDescending { it.second }
+
+    if (categoryTotals.isEmpty()) return
+
+    val total = categoryTotals.sumOf { it.second }
+    val pieData = remember(categoryTotals) {
+        categoryTotals.mapIndexed { i, (label, value) ->
+            Pie(
+                label = label,
+                data = value,
+                color = chartPalette[i % chartPalette.size],
+                selectedColor = chartPalette[i % chartPalette.size].copy(alpha = 0.8f)
+            )
+        }
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("By Category", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(12.dp))
+
+            PieChart(
+                modifier = Modifier.fillMaxWidth().height(160.dp),
+                data = pieData,
+                style = Pie.Style.Stroke(width = 50.dp),
+                selectedScale = 1.1f
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            categoryTotals.take(8).forEachIndexed { i, (label, value) ->
+                val pct = if (total > 0) (value / total * 100).roundToInt() else 0
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier.size(10.dp).clip(CircleShape)
+                            .background(chartPalette[i % chartPalette.size])
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                    Text("${formatCurrency(value)} ($pct%)", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+    }
 }
 
 @Composable
