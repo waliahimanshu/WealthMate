@@ -20,7 +20,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.waliahimanshu.wealthmate.*
-import com.waliahimanshu.wealthmate.components.formatCurrency
+import com.waliahimanshu.wealthmate.components.displayCurrency
+import com.waliahimanshu.wealthmate.savings.DeleteConfirmationDialog
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -33,6 +34,7 @@ fun GoalsScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var contributingToGoal by remember { mutableStateOf<SharedGoal?>(null) }
     var editingGoal by remember { mutableStateOf<SharedGoal?>(null) }
+    var deletingGoal by remember { mutableStateOf<SharedGoal?>(null) }
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Row(
@@ -66,7 +68,7 @@ fun GoalsScreen(
                     members = data.members,
                     onContribute = { contributingToGoal = goal },
                     onEdit = { editingGoal = goal },
-                    onDelete = { onUpdateGoals(data.sharedGoals.filter { it.id != goal.id }) }
+                    onDelete = { deletingGoal = goal }
                 )
             }
         }
@@ -113,6 +115,17 @@ fun GoalsScreen(
             }
         )
     }
+
+    deletingGoal?.let { goal ->
+        DeleteConfirmationDialog(
+            itemName = goal.name,
+            onDismiss = { deletingGoal = null },
+            onConfirm = {
+                onUpdateGoals(data.sharedGoals.filter { it.id != goal.id })
+                deletingGoal = null
+            }
+        )
+    }
 }
 
 @Composable
@@ -145,16 +158,16 @@ fun GoalCard(goal: SharedGoal, members: List<HouseholdMember>, onContribute: () 
             Spacer(Modifier.height(8.dp))
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("${formatCurrency(goal.currentAmount)} saved", color = MaterialTheme.colorScheme.primary)
-                Text("${formatCurrency(goal.remainingAmount)} to go", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("${displayCurrency(goal.currentAmount)} saved", color = MaterialTheme.colorScheme.primary)
+                Text("${displayCurrency(goal.remainingAmount)} to go", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Text("Target: ${formatCurrency(goal.targetAmount)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Target: ${displayCurrency(goal.targetAmount)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
             if (goal.contributions.isNotEmpty()) {
                 Spacer(Modifier.height(12.dp))
                 Text("Recent contributions:", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
                 goal.contributions.takeLast(3).reversed().forEach { contribution ->
-                    Text("${contribution.memberName}: ${formatCurrency(contribution.amount)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("${contribution.memberName}: ${displayCurrency(contribution.amount)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }

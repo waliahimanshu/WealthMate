@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -40,7 +41,7 @@ import androidx.compose.ui.unit.dp
 import com.waliahimanshu.wealthmate.HouseholdFinances
 import com.waliahimanshu.wealthmate.SavingsAccount
 import com.waliahimanshu.wealthmate.UKAccountType
-import com.waliahimanshu.wealthmate.components.formatCurrency
+import com.waliahimanshu.wealthmate.components.displayCurrency
 import com.waliahimanshu.wealthmate.dashboard.SavingsOverviewCard
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -55,97 +56,42 @@ fun SavingsScreen(
     var addingForMemberId by remember { mutableStateOf<String?>(null) }
     var editingAccount by remember { mutableStateOf<SavingsAccount?>(null) }
     var editingForMemberId by remember { mutableStateOf<String?>(null) }
+    var deletingAccount by remember { mutableStateOf<SavingsAccount?>(null) }
 
-    // Tab indices: 0 = Overview (ALL), 1 = Joint, 2+ = Members
     val tabs = listOf("Overview", "Joint") + data.members.map { it.name }
 
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Savings Accounts", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+    val currentAccounts = when (selectedTab) {
+        0 -> data.allSavings
+        1 -> data.sharedAccounts
+        else -> data.members.getOrNull(selectedTab - 2)?.savings ?: emptyList()
+    }
+    val currentMemberId = when (selectedTab) {
+        0 -> null
+        1 -> null
+        else -> data.members.getOrNull(selectedTab - 2)?.id
+    }
 
-        ScrollableTabRow(selectedTabIndex = selectedTab, edgePadding = 0.dp) {
-            tabs.forEachIndexed { index, title ->
-                Tab(selected = selectedTab == index, onClick = { selectedTab = index }, text = { Text(title) })
-            }
-        }
-
-        // Filtering logic: Overview shows ALL, Joint shows shared, Members show individual
-        val currentAccounts = when (selectedTab) {
-            0 -> data.allSavings  // Overview - ALL savings
-            1 -> data.sharedAccounts  // Joint accounts only
-            else -> data.members.getOrNull(selectedTab - 2)?.savings ?: emptyList()
-        }
-        val currentMemberId = when (selectedTab) {
-            0 -> null  // Overview - no specific owner
-            1 -> null  // Joint - shared accounts
-            else -> data.members.getOrNull(selectedTab - 2)?.id
-        }
-
-        // Summary card with Easy Access vs Locked - filtered by selected tab
-        SavingsOverviewCard(
-            accounts = currentAccounts,
-            title = when (selectedTab) {
-                0 -> "Total Savings"
-                1 -> "Joint Savings"
-                else -> "${tabs[selectedTab]} Savings"
-            }
-        )
-
-        // Pie chart for current tab's accounts
-//        if (currentAccounts.isNotEmpty()) {
-//            val accountTypeSlices = currentAccounts
-//                .groupBy { it.accountType }
-//                .map { (accountType, accounts) ->
-//                    PieSlice(
-//                        label = accountType.name.replace("_", " "),
-//                        value = accounts.sumOf { it.balance },
-//                        color = ChartColors.getColor(UKAccountType.entries.indexOf(accountType))
-//                    )
-//                }
-//                .filter { it.value > 0 }
-//                .sortedByDescending { it.value }
-//
-//            PieChartCard(
-//                title = "Breakdown by Account Type",
-//                slices = accountTypeSlices
-//            )
-//        }
-
-        // Add button only shown on Joint or Member tabs (not Overview)
-        if (selectedTab > 0) {
-            Button(onClick = {
+    LazyColumn(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        savingsContent(
+            data = data,
+            selectedTab = selectedTab,
+            onTabSelected = { selectedTab = it },
+            tabs = tabs,
+            currentAccounts = currentAccounts,
+            currentMemberId = currentMemberId,
+            onAddClick = {
                 addingForMemberId = currentMemberId
                 showAddDialog = true
-            }) {
-                Text("Add Account")
-            }
-        }
-
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(currentAccounts) { account ->
-                SavingsAccountCard(
-                    account = account,
-                    onEdit = {
-                        editingAccount = account
-                        // Find the owner of this account for editing
-                        editingForMemberId = account.ownerId
-                    },
-                    onDelete = {
-                        // Determine where this account lives based on ownerId
-                        val accountOwnerId = account.ownerId
-                        if (accountOwnerId == null) {
-                            // Joint/shared account
-                            onUpdateSharedAccounts(data.sharedAccounts.filter { it.id != account.id })
-                        } else {
-                            // Member's personal account
-                            val member = data.members.find { it.id == accountOwnerId }
-                            if (member != null) {
-                                onUpdateMemberSavings(accountOwnerId, member.savings.filter { it.id != account.id })
-                            }
-                        }
-                    }
-                )
-            }
-        }
+            },
+            onEditClick = { account ->
+                editingAccount = account
+                editingForMemberId = account.ownerId
+            },
+            onDeleteClick = { account -> deletingAccount = account }
+        )
     }
 
     if (showAddDialog) {
@@ -182,6 +128,77 @@ fun SavingsScreen(
             }
         )
     }
+
+    deletingAccount?.let { account ->
+        DeleteConfirmationDialog(
+            itemName = account.name,
+            onDismiss = { deletingAccount = null },
+            onConfirm = {
+                val accountOwnerId = account.ownerId
+                if (accountOwnerId == null) {
+                    onUpdateSharedAccounts(data.sharedAccounts.filter { it.id != account.id })
+                } else {
+                    val member = data.members.find { it.id == accountOwnerId }
+                    if (member != null) {
+                        onUpdateMemberSavings(accountOwnerId, member.savings.filter { it.id != account.id })
+                    }
+                }
+                deletingAccount = null
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+fun LazyListScope.savingsContent(
+    data: HouseholdFinances,
+    selectedTab: Int,
+    onTabSelected: (Int) -> Unit,
+    tabs: List<String>,
+    currentAccounts: List<SavingsAccount>,
+    currentMemberId: String?,
+    onAddClick: () -> Unit,
+    onEditClick: (SavingsAccount) -> Unit,
+    onDeleteClick: (SavingsAccount) -> Unit
+) {
+    item {
+        Text("Savings Accounts", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+    }
+
+    item {
+        ScrollableTabRow(selectedTabIndex = selectedTab, edgePadding = 0.dp) {
+            tabs.forEachIndexed { index, title ->
+                Tab(selected = selectedTab == index, onClick = { onTabSelected(index) }, text = { Text(title) })
+            }
+        }
+    }
+
+    item {
+        SavingsOverviewCard(
+            accounts = currentAccounts,
+            title = when (selectedTab) {
+                0 -> "Total Savings"
+                1 -> "Joint Savings"
+                else -> "${tabs[selectedTab]} Savings"
+            }
+        )
+    }
+
+    if (selectedTab > 0) {
+        item {
+            Button(onClick = onAddClick) {
+                Text("Add Account")
+            }
+        }
+    }
+
+    items(currentAccounts) { account ->
+        SavingsAccountCard(
+            account = account,
+            onEdit = { onEditClick(account) },
+            onDelete = { onDeleteClick(account) }
+        )
+    }
 }
 
 @Composable
@@ -200,7 +217,7 @@ fun SavingsAccountCard(account: SavingsAccount, onEdit: () -> Unit, onDelete: ()
                 Text("${account.provider} - ${account.accountType.name.replace("_", " ")}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("${account.interestRate}% AER", style = MaterialTheme.typography.bodySmall, color = Color(0xFF4CAF50))
             }
-            Text(formatCurrency(account.balance), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            Text(displayCurrency(account.balance), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             IconButton(onClick = onEdit) {
                 Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary)
             }
@@ -209,6 +226,25 @@ fun SavingsAccountCard(account: SavingsAccount, onEdit: () -> Unit, onDelete: ()
             }
         }
     }
+}
+
+@Composable
+fun DeleteConfirmationDialog(
+    itemName: String,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Delete $itemName?") },
+        text = { Text("Are you sure you want to delete this? This cannot be undone.") },
+        confirmButton = {
+            Button(onClick = onConfirm) { Text("Delete") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -232,7 +268,6 @@ fun AddSavingsDialog(onDismiss: () -> Unit, onAdd: (SavingsAccount) -> Unit) {
                     keyboardType = KeyboardType.Decimal
                 ), modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = interestRate, onValueChange = { interestRate = it }, label = { Text("Interest Rate (AER)") }, suffix = { Text("%") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
-                // Only show cash-based account types for Savings
                 val savingsAccountTypes = listOf(
                     UKAccountType.EASY_ACCESS,
                     UKAccountType.REGULAR_SAVER,
@@ -282,7 +317,6 @@ fun EditSavingsDialog(account: SavingsAccount, onDismiss: () -> Unit, onSave: (S
                 OutlinedTextField(value = provider, onValueChange = { provider = it }, label = { Text("Provider") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = balance, onValueChange = { balance = it }, label = { Text("Balance") }, prefix = { Text("£") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = interestRate, onValueChange = { interestRate = it }, label = { Text("Interest Rate (AER)") }, suffix = { Text("%") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
-                // Only show cash-based account types for Savings
                 val savingsAccountTypes = listOf(
                     UKAccountType.EASY_ACCESS,
                     UKAccountType.REGULAR_SAVER,

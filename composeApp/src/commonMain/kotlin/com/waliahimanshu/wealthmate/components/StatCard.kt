@@ -65,14 +65,20 @@ fun StatCard(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun StatCardRow(
     modifier: Modifier = Modifier,
-    content: @Composable RowScope.() -> Unit
+    content: @Composable FlowRowScope.() -> Unit
 ) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        content = content
-    )
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        val isMobile = maxWidth < 600.dp
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            maxItemsInEachRow = if (isMobile) 2 else Int.MAX_VALUE,
+            content = content
+        )
+    }
 }

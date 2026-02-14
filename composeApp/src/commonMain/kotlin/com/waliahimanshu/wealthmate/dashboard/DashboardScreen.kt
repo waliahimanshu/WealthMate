@@ -56,14 +56,14 @@ fun DashboardScreen(
             StatCardRow {
                 StatCard(
                     title = "Total Wealth",
-                    value = formatCurrency(data.totalSavings + data.totalPortfolioValue + (data.mortgage?.equity ?: 0.0)),
+                    value = displayCurrency(data.totalSavings + data.totalPortfolioValue + (data.mortgage?.equity ?: 0.0)),
                     icon = Icons.Outlined.AccountBalance,
                     subtitle = "Across all accounts",
                     modifier = Modifier.weight(1f)
                 )
                 StatCard(
                     title = "Monthly Income",
-                    value = formatCurrency(data.totalHouseholdIncome),
+                    value = displayCurrency(data.totalHouseholdIncome),
                     icon = Icons.Outlined.TrendingUp,
                     valueColor = Color(0xFF4CAF50),
                     subtitle = "Combined income",
@@ -71,7 +71,7 @@ fun DashboardScreen(
                 )
                 StatCard(
                     title = "Monthly Expenses",
-                    value = formatCurrency(data.totalOutgoings),
+                    value = displayCurrency(data.totalOutgoings),
                     icon = Icons.Outlined.Receipt,
                     valueColor = Color(0xFFF44336),
                     subtitle = "Total outgoings",
@@ -79,7 +79,7 @@ fun DashboardScreen(
                 )
                 StatCard(
                     title = "Net Monthly",
-                    value = formatCurrency(data.netMonthlyHousehold),
+                    value = displayCurrency(data.netMonthlyHousehold),
                     icon = Icons.Outlined.Star,
                     valueColor = if (data.netMonthlyHousehold >= 0) Color(0xFF4CAF50) else Color(0xFFF44336),
                     subtitle = "Available to save",
@@ -184,17 +184,17 @@ fun DashboardScreen(
                     Text(member.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 }
                 item {
-                    SummaryCard("Salary", formatCurrency(member.salary), Color(0xFF4CAF50))
+                    SummaryCard("Salary", displayCurrency(member.salary), Color(0xFF4CAF50))
                 }
                 item {
-                    SummaryCard("Personal Outgoings", formatCurrency(member.totalOutgoings), Color(0xFFF44336))
+                    SummaryCard("Personal Outgoings", displayCurrency(member.totalOutgoings), Color(0xFFF44336))
                 }
                 item {
-                    SummaryCard("Net Monthly", formatCurrency(member.netMonthly),
+                    SummaryCard("Net Monthly", displayCurrency(member.netMonthly),
                         if (member.netMonthly >= 0) Color(0xFF2196F3) else Color(0xFFF44336))
                 }
                 item {
-                    SummaryCard("Personal Savings", formatCurrency(member.totalSavings), Color(0xFF9C27B0))
+                    SummaryCard("Personal Savings", displayCurrency(member.totalSavings), Color(0xFF9C27B0))
                 }
             }
         }
@@ -243,7 +243,7 @@ fun GoalProgressCard(goal: SharedGoal) {
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                "${formatCurrency(goal.currentAmount)} / ${formatCurrency(goal.targetAmount)}",
+                "${displayCurrency(goal.currentAmount)} / ${displayCurrency(goal.targetAmount)}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -276,7 +276,7 @@ fun InvestmentsSummaryCard(data: HouseholdFinances) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("Investments", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                Text(formatCurrency(totalValue), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text(displayCurrency(totalValue), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             }
 
             Spacer(Modifier.height(12.dp))
@@ -288,7 +288,7 @@ fun InvestmentsSummaryCard(data: HouseholdFinances) {
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(type, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(formatCurrency(value), fontWeight = FontWeight.SemiBold)
+                        Text(displayCurrency(value), fontWeight = FontWeight.SemiBold)
                     }
                 }
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -300,13 +300,13 @@ fun InvestmentsSummaryCard(data: HouseholdFinances) {
             ) {
                 Column {
                     Text("Monthly", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("${formatCurrency(data.totalMonthlyInvestments)}/mo", fontWeight = FontWeight.Bold)
+                    Text("${displayCurrency(data.totalMonthlyInvestments)}/mo", fontWeight = FontWeight.Bold)
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text("Gain/Loss", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     val gainColor = if (gainLoss >= 0) Color(0xFF4CAF50) else Color(0xFFF44336)
                     Text(
-                        "${if (gainLoss >= 0) "+" else ""}${formatCurrency(gainLoss)} (${if (gainLoss >= 0) "+" else ""}${gainPercent.roundToInt()}%)",
+                        "${if (gainLoss >= 0) "+" else ""}${displayCurrency(gainLoss)} (${if (gainLoss >= 0) "+" else ""}${gainPercent.roundToInt()}%)",
                         fontWeight = FontWeight.Bold,
                         color = gainColor
                     )
@@ -331,7 +331,7 @@ fun IncomeOutgoingsOverviewCard(data: HouseholdFinances) {
                 Column {
                     Text("Income", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(
-                        formatCurrency(data.totalHouseholdIncome),
+                        displayCurrency(data.totalHouseholdIncome),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF4CAF50)
@@ -341,7 +341,7 @@ fun IncomeOutgoingsOverviewCard(data: HouseholdFinances) {
                 Column(horizontalAlignment = Alignment.End) {
                     Text("Expenses", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(
-                        formatCurrency(data.totalOutgoings),
+                        displayCurrency(data.totalOutgoings),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFFF44336)
@@ -362,7 +362,7 @@ fun IncomeOutgoingsOverviewCard(data: HouseholdFinances) {
                 Text("Net Monthly: ", style = MaterialTheme.typography.titleMedium)
                 val netColor = if (data.netMonthlyHousehold >= 0) Color(0xFF4CAF50) else Color(0xFFF44336)
                 Text(
-                    "${if (data.netMonthlyHousehold >= 0) "+" else ""}${formatCurrency(data.netMonthlyHousehold)}",
+                    "${if (data.netMonthlyHousehold >= 0) "+" else ""}${displayCurrency(data.netMonthlyHousehold)}",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = netColor
@@ -401,7 +401,7 @@ fun SavingsOverviewCard(
         Column(modifier = Modifier.padding(16.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Text(
-                formatCurrency(totalSavings),
+                displayCurrency(totalSavings),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
@@ -416,7 +416,7 @@ fun SavingsOverviewCard(
                 Column {
                     Text("Cash Savings", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(
-                        formatCurrency(easyAccessSavings),
+                        displayCurrency(easyAccessSavings),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = Color(0xFF4CAF50)
@@ -426,7 +426,7 @@ fun SavingsOverviewCard(
                 Column(horizontalAlignment = Alignment.End) {
                     Text("Long-term", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(
-                        formatCurrency(lockedSavings),
+                        displayCurrency(lockedSavings),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = Color(0xFFFF9800)
@@ -457,16 +457,16 @@ fun PropertyEquityCard(mortgage: MortgageInfo) {
             Spacer(Modifier.height(12.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("Current Value:", style = MaterialTheme.typography.bodyMedium)
-                Text(formatCurrency(mortgage.propertyValue), fontWeight = FontWeight.SemiBold)
+                Text(displayCurrency(mortgage.propertyValue), fontWeight = FontWeight.SemiBold)
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("Mortgage Balance:", style = MaterialTheme.typography.bodyMedium)
-                Text(formatCurrency(mortgage.remainingBalance), fontWeight = FontWeight.SemiBold)
+                Text(displayCurrency(mortgage.remainingBalance), fontWeight = FontWeight.SemiBold)
             }
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("Total Equity:", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                Text(formatCurrency(mortgage.equity), fontWeight = FontWeight.Bold, color = Color(0xFF4CAF50))
+                Text(displayCurrency(mortgage.equity), fontWeight = FontWeight.Bold, color = Color(0xFF4CAF50))
             }
         }
     }
@@ -494,14 +494,14 @@ fun KidsJISACard(kidsInvestments: List<Investment>, members: List<HouseholdMembe
             kidsInvestments.forEach { inv ->
                 Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(inv.name, style = MaterialTheme.typography.bodyMedium)
-                    Text(formatCurrency(inv.currentValue), fontWeight = FontWeight.SemiBold)
+                    Text(displayCurrency(inv.currentValue), fontWeight = FontWeight.SemiBold)
                 }
             }
             if (kidsInvestments.size > 1) {
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("Total JISA:", fontWeight = FontWeight.Bold)
-                    Text(formatCurrency(totalKids), fontWeight = FontWeight.Bold, color = Color(0xFF4CAF50))
+                    Text(displayCurrency(totalKids), fontWeight = FontWeight.Bold, color = Color(0xFF4CAF50))
                 }
             }
         }
@@ -538,18 +538,18 @@ fun ProjectedGrowthCard(
             ) {
                 Column {
                     Text("If you keep investing", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("${formatCurrency(monthlyContribution)}/mo", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("${displayCurrency(monthlyContribution)}/mo", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text("Potential value in $years years", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(formatCurrency(projectedValue), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color(0xFF4CAF50))
+                    Text(displayCurrency(projectedValue), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color(0xFF4CAF50))
                 }
             }
             Spacer(Modifier.height(8.dp))
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Now: ${formatCurrency(currentValue)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Now: ${displayCurrency(currentValue)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.weight(1f))
-                Text("(+${formatCurrency(projectedGain)} potential growth)", style = MaterialTheme.typography.bodySmall, color = Color(0xFF4CAF50))
+                Text("(+${displayCurrency(projectedGain)} potential growth)", style = MaterialTheme.typography.bodySmall, color = Color(0xFF4CAF50))
             }
             Spacer(Modifier.height(4.dp))
             Text("Based on historical average returns. Actual returns may vary.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
@@ -646,8 +646,8 @@ fun ExpenseBreakdownChart(outgoings: List<Outgoing>, mortgage: MortgageInfo?) {
                             .background(chartPalette[i % chartPalette.size])
                     )
                     Spacer(Modifier.width(8.dp))
-                    Text(label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                    Text(formatCurrency(value), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                    Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                    Text(displayCurrency(value), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                 }
             }
             if (sorted.size > 6) {
@@ -658,8 +658,8 @@ fun ExpenseBreakdownChart(outgoings: List<Outgoing>, mortgage: MortgageInfo?) {
                 ) {
                     Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color.Gray))
                     Spacer(Modifier.width(8.dp))
-                    Text("Others (${sorted.size - 6})", style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                    Text(formatCurrency(othersTotal), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                    Text("Others (${sorted.size - 6})", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                    Text(displayCurrency(othersTotal), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                 }
             }
         }
@@ -721,8 +721,8 @@ fun WealthCompositionChart(data: HouseholdFinances) {
                             .background(wealthColors[i % wealthColors.size])
                     )
                     Spacer(Modifier.width(8.dp))
-                    Text(label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                    Text("${formatCurrency(value)} ($pct%)", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                    Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                    Text("${displayCurrency(value)} ($pct%)", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                 }
             }
         }

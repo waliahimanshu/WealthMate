@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.outlined.TrendingUp
 import androidx.compose.material3.*
 import androidx.compose.material3.Icon
@@ -19,7 +20,7 @@ import com.waliahimanshu.wealthmate.HouseholdFinances
 import com.waliahimanshu.wealthmate.HouseholdMember
 import com.waliahimanshu.wealthmate.components.StatCard
 import com.waliahimanshu.wealthmate.components.StatCardRow
-import com.waliahimanshu.wealthmate.components.formatCurrency
+import com.waliahimanshu.wealthmate.components.displayCurrency
 import com.waliahimanshu.wealthmate.components.parseColor
 
 @Composable
@@ -39,17 +40,17 @@ fun IncomeScreen(data: HouseholdFinances) {
             StatCardRow {
                 StatCard(
                     title = "Total Monthly Income",
-                    value = formatCurrency(data.totalHouseholdIncome),
-                    icon = Icons.Outlined.TrendingUp,
+                    value = displayCurrency(data.totalHouseholdIncome),
+                    icon = Icons.AutoMirrored.Outlined.TrendingUp,
                     valueColor = Color(0xFF4CAF50),
-                    subtitle = "£${(data.totalHouseholdIncome * 12).toLong()} annually",
+                    subtitle = "${displayCurrency(data.totalHouseholdIncome * 12)} annually",
                     modifier = Modifier.weight(1f)
                 )
                 data.members.forEachIndexed { index, member ->
                     StatCard(
                         title = "${member.name} Income",
-                        value = formatCurrency(member.salary),
-                        icon = Icons.Outlined.TrendingUp,
+                        value = displayCurrency(member.salary),
+                        icon = Icons.AutoMirrored.Outlined.TrendingUp,
                         subtitle = "${((member.salary / data.totalHouseholdIncome) * 100).toInt()}% of total",
                         modifier = Modifier.weight(1f)
                     )
@@ -126,7 +127,7 @@ fun IncomeSourceCard(member: HouseholdMember) {
                 }
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "${formatCurrency(member.salary)} monthly",
+                    "${displayCurrency(member.salary)} monthly",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

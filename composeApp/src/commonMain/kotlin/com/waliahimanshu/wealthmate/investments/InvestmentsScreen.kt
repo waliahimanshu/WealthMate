@@ -2,12 +2,11 @@ package com.waliahimanshu.wealthmate.investments// =============================
 // INVESTMENTS SCREEN
 // ============================================
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -18,12 +17,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.waliahimanshu.wealthmate.AssetClass
@@ -35,10 +31,9 @@ import com.waliahimanshu.wealthmate.UKAccountType
 import com.waliahimanshu.wealthmate.components.*
 import com.waliahimanshu.wealthmate.currentTimeMillis
 import com.waliahimanshu.wealthmate.dashboard.ProjectedGrowthCard
+import com.waliahimanshu.wealthmate.savings.DeleteConfirmationDialog
 import com.waliahimanshu.wealthmate.savings.SavingsScreen
 import com.waliahimanshu.wealthmate.storage.*
-import ir.ehsannarmani.compose_charts.PieChart
-import ir.ehsannarmani.compose_charts.models.Pie
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -51,161 +46,42 @@ fun InvestmentsScreen(
     var selectedTab by remember { mutableStateOf(0) }
     var showAddDialog by remember { mutableStateOf(false) }
     var editingInvestment by remember { mutableStateOf<Investment?>(null) }
+    var deletingInvestment by remember { mutableStateOf<Investment?>(null) }
 
-    // Tabs: Overview, each member, and Kids
     val memberTabs = data.members.map { it.name }
     val tabs = listOf("Overview") + memberTabs + listOf("Kids")
 
-    // These need to be outside Column so dialogs can access them
     val currentMemberId = when {
-        selectedTab == 0 -> null // Overview
-        selectedTab == tabs.size - 1 -> null // Kids
+        selectedTab == 0 -> null
+        selectedTab == tabs.size - 1 -> null
         else -> data.members.getOrNull(selectedTab - 1)?.id
     }
     val isKidsTab = selectedTab == tabs.size - 1
 
-    // Filter investments based on selected tab
     val filteredInvestments = when {
-        selectedTab == 0 -> data.investments // Overview - all
-        selectedTab == tabs.size - 1 -> data.kidsInvestments // Kids tab
+        selectedTab == 0 -> data.investments
+        selectedTab == tabs.size - 1 -> data.kidsInvestments
         else -> {
             val memberId = data.members.getOrNull(selectedTab - 1)?.id
             data.investments.filter { it.ownerId == memberId && !it.isForKids }
         }
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Investments", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-
-        ScrollableTabRow(selectedTabIndex = selectedTab, edgePadding = 0.dp) {
-            tabs.forEachIndexed { index, title ->
-                Tab(
-                    selected = selectedTab == index,
-                    onClick = { selectedTab = index },
-                    text = {
-                        if (title == "Kids") {
-                            Text("Kids")
-                        } else {
-                            Text(title)
-                        }
-                    }
-                )
-            }
-        }
-
-        // Summary stats
-        val totalValue = filteredInvestments.sumOf { it.currentValue }
-        val totalContributed = filteredInvestments.sumOf { it.totalContributed }
-        val totalGainLoss = totalValue - totalContributed
-        val totalMonthly = filteredInvestments.sumOf { it.monthlyContribution }
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column {
-                        Text("Portfolio Value", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(formatCurrency(totalValue), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                    }
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text("Total Gain/Loss", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        val gainColor = if (totalGainLoss >= 0) Color(0xFF4CAF50) else Color(0xFFF44336)
-                        val gainPercent = if (totalContributed > 0) (totalGainLoss / totalContributed * 100) else 0.0
-                        Text(
-                            "${if (totalGainLoss >= 0) "+" else ""}${formatCurrency(totalGainLoss)} (${if (totalGainLoss >= 0) "+" else ""}${gainPercent.roundToInt()}%)",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = gainColor
-                        )
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-                Text("Monthly Contributions: ${formatCurrency(totalMonthly)}/mo", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-
-        // Projected Growth Card
-//        if (data.investments.isNotEmpty()) {
-//            Spacer(Modifier.height(16.dp))
-//            ProjectedGrowthCard(
-//                currentValue = data.totalPortfolioValue,
-//                monthlyContribution = data.totalMonthlyInvestments
-//            )
-//        }
-
-        Button(onClick = { showAddDialog = true }) {
-            Text("Add Investment")
-        }
-
-        // Asset class allocation chart
-        if (filteredInvestments.isNotEmpty()) {
-            AssetAllocationChart(filteredInvestments)
-        }
-
-        // Investments list
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            // Recurring investments
-            val recurring = filteredInvestments.filter { it.frequency != InvestmentFrequency.ONE_TIME }
-            if (recurring.isNotEmpty()) {
-                item {
-                    Text("Recurring Investments", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                }
-                items(recurring) { investment ->
-                    InvestmentCard(
-                        investment = investment,
-                        onEdit = { editingInvestment = investment },
-                        onDelete = { onUpdateInvestments(data.investments.filter { it.id != investment.id }) }
-                    )
-                }
-            }
-
-            // One-time investments
-            val oneTime = filteredInvestments.filter { it.frequency == InvestmentFrequency.ONE_TIME }
-            if (oneTime.isNotEmpty()) {
-                item {
-                    Spacer(Modifier.height(8.dp))
-                    Text("One-time Investments", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                }
-                items(oneTime) { investment ->
-                    InvestmentCard(
-                        investment = investment,
-                        onEdit = { editingInvestment = investment },
-                        onDelete = { onUpdateInvestments(data.investments.filter { it.id != investment.id }) }
-                    )
-                }
-            }
-
-            // Empty state
-            if (filteredInvestments.isEmpty()) {
-                item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                    ) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(32.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                if (isKidsTab) "No kids investments yet" else "No investments yet",
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                            Text(
-                                if (isKidsTab) "Add Junior ISAs or other investments for your children"
-                                else "Track your ISAs, Trading 212, and other investments",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                }
-            }
-        }
+    LazyColumn(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        investmentsContent(
+            data = data,
+            selectedTab = selectedTab,
+            onTabSelected = { selectedTab = it },
+            tabs = tabs,
+            filteredInvestments = filteredInvestments,
+            isKidsTab = isKidsTab,
+            onAddClick = { showAddDialog = true },
+            onEditClick = { editingInvestment = it },
+            onDeleteClick = { deletingInvestment = it }
+        )
     }
 
     if (showAddDialog) {
@@ -231,6 +107,153 @@ fun InvestmentsScreen(
                 editingInvestment = null
             }
         )
+    }
+
+    deletingInvestment?.let { investment ->
+        DeleteConfirmationDialog(
+            itemName = investment.name,
+            onDismiss = { deletingInvestment = null },
+            onConfirm = {
+                onUpdateInvestments(data.investments.filter { it.id != investment.id })
+                deletingInvestment = null
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+fun LazyListScope.investmentsContent(
+    data: HouseholdFinances,
+    selectedTab: Int,
+    onTabSelected: (Int) -> Unit,
+    tabs: List<String>,
+    filteredInvestments: List<Investment>,
+    isKidsTab: Boolean,
+    onAddClick: () -> Unit,
+    onEditClick: (Investment) -> Unit,
+    onDeleteClick: (Investment) -> Unit
+) {
+    item {
+        Text("Investments", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+    }
+
+    item {
+        ScrollableTabRow(selectedTabIndex = selectedTab, edgePadding = 0.dp) {
+            tabs.forEachIndexed { index, title ->
+                Tab(
+                    selected = selectedTab == index,
+                    onClick = { onTabSelected(index) },
+                    text = {
+                        if (title == "Kids") {
+                            Text("Kids")
+                        } else {
+                            Text(title)
+                        }
+                    }
+                )
+            }
+        }
+    }
+
+    // Summary stats
+    val totalValue = filteredInvestments.sumOf { it.currentValue }
+    val totalContributed = filteredInvestments.sumOf { it.totalContributed }
+    val totalGainLoss = totalValue - totalContributed
+    val totalMonthly = filteredInvestments.sumOf { it.monthlyContribution }
+
+    item {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text("Portfolio Value", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(displayCurrency(totalValue), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text("Total Gain/Loss", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        val gainColor = if (totalGainLoss >= 0) Color(0xFF4CAF50) else Color(0xFFF44336)
+                        val gainPercent = if (totalContributed > 0) (totalGainLoss / totalContributed * 100) else 0.0
+                        Text(
+                            "${if (totalGainLoss >= 0) "+" else ""}${displayCurrency(totalGainLoss)} (${if (totalGainLoss >= 0) "+" else ""}${gainPercent.roundToInt()}%)",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = gainColor
+                        )
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Text("Monthly Contributions: ${displayCurrency(totalMonthly)}/mo", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+
+    item {
+        Button(onClick = onAddClick) {
+            Text("Add Investment")
+        }
+    }
+
+    // Recurring investments
+    val recurring = filteredInvestments.filter { it.frequency != InvestmentFrequency.ONE_TIME }
+    if (recurring.isNotEmpty()) {
+        item {
+            Text("Recurring Investments", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        }
+        items(recurring) { investment ->
+            InvestmentCard(
+                investment = investment,
+                onEdit = { onEditClick(investment) },
+                onDelete = { onDeleteClick(investment) }
+            )
+        }
+    }
+
+    // One-time investments
+    val oneTime = filteredInvestments.filter { it.frequency == InvestmentFrequency.ONE_TIME }
+    if (oneTime.isNotEmpty()) {
+        item {
+            Spacer(Modifier.height(8.dp))
+            Text("One-time Investments", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        }
+        items(oneTime) { investment ->
+            InvestmentCard(
+                investment = investment,
+                onEdit = { onEditClick(investment) },
+                onDelete = { onDeleteClick(investment) }
+            )
+        }
+    }
+
+    // Empty state
+    if (filteredInvestments.isEmpty()) {
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        if (isKidsTab) "No kids investments yet" else "No investments yet",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        if (isKidsTab) "Add Junior ISAs or other investments for your children"
+                        else "Track your ISAs, Trading 212, and other investments",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -299,27 +322,27 @@ fun InvestmentCard(
                 Column {
                     if (investment.frequency != InvestmentFrequency.ONE_TIME) {
                         Text(
-                            "${formatCurrency(investment.contributionAmount)}/${investment.displayFrequency.lowercase()}",
+                            "${displayCurrency(investment.contributionAmount)}/${investment.displayFrequency.lowercase()}",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold
                         )
                     } else {
                         Text(
-                            "Invested: ${formatCurrency(investment.totalContributed)}",
+                            "Invested: ${displayCurrency(investment.totalContributed)}",
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        "Value: ${formatCurrency(investment.currentValue)}",
+                        "Value: ${displayCurrency(investment.currentValue)}",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                     val gainColor = if (investment.gainLoss >= 0) Color(0xFF4CAF50) else Color(0xFFF44336)
                     Text(
-                        "${if (investment.gainLoss >= 0) "+" else ""}${formatCurrency(investment.gainLoss)} (${if (investment.gainLoss >= 0) "+" else ""}${investment.gainLossPercent.roundToInt()}%)",
+                        "${if (investment.gainLoss >= 0) "+" else ""}${displayCurrency(investment.gainLoss)} (${if (investment.gainLoss >= 0) "+" else ""}${investment.gainLossPercent.roundToInt()}%)",
                         style = MaterialTheme.typography.bodySmall,
                         color = gainColor
                     )
@@ -397,7 +420,6 @@ fun AddInvestmentDialog(
                             modifier = Modifier.fillMaxWidth().menuAnchor()
                         )
                         ExposedDropdownMenu(expanded = accountTypeExpanded, onDismissRequest = { accountTypeExpanded = false }) {
-                            // Show investment-related account types
                             listOf(
                                 UKAccountType.STOCKS_SHARES_ISA,
                                 UKAccountType.JUNIOR_ISA,
@@ -791,73 +813,4 @@ fun EditInvestmentDialog(
             TextButton(onClick = onDismiss) { Text("Cancel") }
         }
     )
-}
-
-// ============================================================
-// CHART COMPONENTS
-// ============================================================
-
-private val assetChartColors = listOf(
-    Color(0xFF4CAF50), Color(0xFF2196F3), Color(0xFFFF9800),
-    Color(0xFF9C27B0), Color(0xFFF44336), Color(0xFF00BCD4),
-    Color(0xFF795548)
-)
-
-@Composable
-fun AssetAllocationChart(investments: List<Investment>) {
-    val allocation = investments
-        .groupBy { it.assetClass }
-        .map { (assetClass, invs) -> assetClass.name to invs.sumOf { it.currentValue } }
-        .filter { it.second > 0 }
-        .sortedByDescending { it.second }
-
-    if (allocation.isEmpty()) return
-
-    val total = allocation.sumOf { it.second }
-    val pieData = remember(allocation) {
-        allocation.mapIndexed { i, (label, value) ->
-            Pie(
-                label = label,
-                data = value,
-                color = assetChartColors[i % assetChartColors.size],
-                selectedColor = assetChartColors[i % assetChartColors.size].copy(alpha = 0.8f)
-            )
-        }
-    }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("Asset Allocation", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(12.dp))
-
-            PieChart(
-                modifier = Modifier.fillMaxWidth().height(160.dp),
-                data = pieData,
-                style = Pie.Style.Stroke(width = 50.dp),
-                selectedScale = 1.1f
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            allocation.forEachIndexed { i, (label, value) ->
-                val pct = if (total > 0) (value / total * 100).roundToInt() else 0
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier.size(10.dp).clip(CircleShape)
-                            .background(assetChartColors[i % assetChartColors.size])
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                    Text("${formatCurrency(value)} ($pct%)", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
-                }
-            }
-        }
-    }
 }

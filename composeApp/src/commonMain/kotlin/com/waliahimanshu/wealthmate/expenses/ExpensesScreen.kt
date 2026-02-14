@@ -7,24 +7,18 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.foundation.background
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.waliahimanshu.wealthmate.*
-import com.waliahimanshu.wealthmate.components.formatCurrency
-import ir.ehsannarmani.compose_charts.PieChart
-import ir.ehsannarmani.compose_charts.models.Pie
-import kotlin.math.roundToInt
+import com.waliahimanshu.wealthmate.components.displayCurrency
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,6 +34,8 @@ fun ExpensesScreen(
     var addingForMemberId by remember { mutableStateOf<String?>(null) }
     var editingOutgoing by remember { mutableStateOf<Outgoing?>(null) }
     var editingForMemberId by remember { mutableStateOf<String?>(null) }
+    var deletingOutgoing by remember { mutableStateOf<Outgoing?>(null) }
+    var deletingForMemberId by remember { mutableStateOf<String?>(null) }
 
     val tabs = listOf("Shared") + data.members.map { it.name }
 
@@ -60,7 +56,7 @@ fun ExpensesScreen(
         }
         val currentMemberId = if (selectedTab == 0) null else data.members.getOrNull(selectedTab - 1)?.id
 
-        Text("Total: ${formatCurrency(currentOutgoings.sumOf { it.amount })}", color = Color(0xFFF44336), fontWeight = FontWeight.Bold)
+        Text("Total: ${displayCurrency(currentOutgoings.sumOf { it.amount })}", color = Color(0xFFF44336), fontWeight = FontWeight.Bold)
 
         Button(onClick = {
             addingForMemberId = currentMemberId
@@ -69,16 +65,11 @@ fun ExpensesScreen(
             Text("Add Expense")
         }
 
-        // Category breakdown chart
-        if (currentOutgoings.isNotEmpty()) {
-            ExpenseCategoryChart(currentOutgoings)
-        }
-
         if (selectedTab == 0) {
             MortgageSection(data.mortgage, onUpdateMortgage)
         }
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             items(currentOutgoings) { outgoing ->
                 OutgoingCard(
                     outgoing = outgoing,
@@ -87,11 +78,8 @@ fun ExpensesScreen(
                         editingForMemberId = currentMemberId
                     },
                     onDelete = {
-                        if (currentMemberId == null) {
-                            onUpdateSharedOutgoings(data.sharedOutgoings.filter { it.id != outgoing.id })
-                        } else {
-                            onUpdateMemberOutgoings(currentMemberId, currentOutgoings.filter { it.id != outgoing.id })
-                        }
+                        deletingOutgoing = outgoing
+                        deletingForMemberId = currentMemberId
                     }
                 )
             }
@@ -136,6 +124,21 @@ fun ExpensesScreen(
             onAddCustomCategory = onAddCustomCategory
         )
     }
+
+    deletingOutgoing?.let { outgoing ->
+        com.waliahimanshu.wealthmate.savings.DeleteConfirmationDialog(
+            itemName = outgoing.name,
+            onDismiss = { deletingOutgoing = null },
+            onConfirm = {
+                if (deletingForMemberId == null) {
+                    onUpdateSharedOutgoings(data.sharedOutgoings.filter { it.id != outgoing.id })
+                } else {
+                    onUpdateMemberOutgoings(deletingForMemberId!!, data.members.find { it.id == deletingForMemberId }?.outgoings?.filter { it.id != outgoing.id } ?: emptyList())
+                }
+                deletingOutgoing = null
+            }
+        )
+    }
 }
 
 @Composable
@@ -158,7 +161,7 @@ fun MortgageSection(mortgage: MortgageInfo?, onUpdate: (MortgageInfo?) -> Unit) 
                 }
             }
             if (mortgage != null) {
-                Text("${mortgage.provider} - ${formatCurrency(mortgage.monthlyPayment)}/mo", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("${mortgage.provider} - ${displayCurrency(mortgage.monthlyPayment)}/mo", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("${mortgage.interestRate}% - ${mortgage.termRemainingMonths} months remaining", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -183,7 +186,7 @@ fun OutgoingCard(outgoing: Outgoing, onEdit: () -> Unit, onDelete: () -> Unit) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -191,7 +194,7 @@ fun OutgoingCard(outgoing: Outgoing, onEdit: () -> Unit, onDelete: () -> Unit) {
                 Text(outgoing.name, fontWeight = FontWeight.Bold)
                 Text(outgoing.displayCategory, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Text(formatCurrency(outgoing.amount), fontWeight = FontWeight.Bold, color = Color(0xFFF44336))
+            Text(displayCurrency(outgoing.amount), fontWeight = FontWeight.Bold, color = Color(0xFFF44336))
             IconButton(onClick = onEdit) {
                 Icon(Icons.Default.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.primary)
             }
@@ -337,71 +340,6 @@ fun EditOutgoingDialog(
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
-}
-
-private val chartPalette = listOf(
-    Color(0xFF4CAF50), Color(0xFF2196F3), Color(0xFFFF9800),
-    Color(0xFF9C27B0), Color(0xFFF44336), Color(0xFF00BCD4),
-    Color(0xFFFFEB3B), Color(0xFF795548), Color(0xFFE91E63),
-    Color(0xFF607D8B)
-)
-
-@Composable
-fun ExpenseCategoryChart(outgoings: List<Outgoing>) {
-    val categoryTotals = outgoings
-        .groupBy { it.displayCategory }
-        .map { (cat, items) -> cat to items.sumOf { it.amount } }
-        .sortedByDescending { it.second }
-
-    if (categoryTotals.isEmpty()) return
-
-    val total = categoryTotals.sumOf { it.second }
-    val pieData = remember(categoryTotals) {
-        categoryTotals.mapIndexed { i, (label, value) ->
-            Pie(
-                label = label,
-                data = value,
-                color = chartPalette[i % chartPalette.size],
-                selectedColor = chartPalette[i % chartPalette.size].copy(alpha = 0.8f)
-            )
-        }
-    }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("By Category", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(12.dp))
-
-            PieChart(
-                modifier = Modifier.fillMaxWidth().height(160.dp),
-                data = pieData,
-                style = Pie.Style.Stroke(width = 50.dp),
-                selectedScale = 1.1f
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            categoryTotals.take(8).forEachIndexed { i, (label, value) ->
-                val pct = if (total > 0) (value / total * 100).roundToInt() else 0
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier.size(10.dp).clip(CircleShape)
-                            .background(chartPalette[i % chartPalette.size])
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                    Text("${formatCurrency(value)} ($pct%)", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
-                }
-            }
-        }
-    }
 }
 
 @Composable

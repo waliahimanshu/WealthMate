@@ -11,12 +11,19 @@ import androidx.compose.ui.graphics.vector.ImageVector
 
 enum class Screen(
     val displayName: String,
-    val icon: ImageVector
+    val icon: ImageVector,
+    val showInMobileBottomBar: Boolean = true,
+    val mobileDisplayName: String = displayName
 ) {
     DASHBOARD("Dashboard", Icons.Outlined.Home),
     INCOME("Income", Icons.Outlined.TrendingUp),
     EXPENSES("Expenses", Icons.Outlined.Receipt),
-    SAVINGS_INVESTMENTS("Savings & Investments", Icons.Outlined.AccountBalance),
-    GOALS("Goals", Icons.Outlined.Flag),
-    SETTINGS("Settings", Icons.Outlined.Settings)
+    SAVINGS_INVESTMENTS("Savings & Investments", Icons.Outlined.AccountBalance, mobileDisplayName = "Savings"),
+    GOALS("Goals", Icons.Outlined.Flag, showInMobileBottomBar = false),
+    SETTINGS("Settings", Icons.Outlined.Settings, showInMobileBottomBar = false);
+
+    companion object {
+        val mobileBottomBarScreens = entries.filter { it.showInMobileBottomBar }
+        val mobileDrawerScreens = entries.filter { !it.showInMobileBottomBar }
+    }
 }

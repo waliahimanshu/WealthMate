@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -14,6 +15,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.waliahimanshu.wealthmate.storage.SyncStatus
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 @Composable
@@ -110,12 +112,35 @@ fun StatItem(label: String, value: String, color: Color) {
     }
 }
 
+val LocalShowMode = compositionLocalOf { false }
+
 // Utility functions
 fun formatCurrency(amount: Double): String {
     val wholePart = amount.toLong()
     val decimalPart = ((amount - wholePart) * 100).roundToInt()
     val decimalStr = decimalPart.toString().padStart(2, '0')
     return "£$wholePart.$decimalStr"
+}
+
+fun maskAmount(amount: Double): Double {
+    if (amount == 0.0) return 0.0
+    val magnitude = when {
+        abs(amount) >= 100_000 -> 100_000.0
+        abs(amount) >= 10_000 -> 10_000.0
+        abs(amount) >= 1_000 -> 1_000.0
+        abs(amount) >= 100 -> 100.0
+        abs(amount) >= 10 -> 10.0
+        else -> 1.0
+    }
+    val hash = abs(amount.toBits().hashCode())
+    val factor = 1.0 + (hash % 900) / 100.0
+    return magnitude * factor * if (amount < 0) -1.0 else 1.0
+}
+
+@Composable
+fun displayCurrency(amount: Double): String {
+    val masked = LocalShowMode.current
+    return if (masked) formatCurrency(maskAmount(amount)) else formatCurrency(amount)
 }
 
 fun parseColor(hex: String): Color {
