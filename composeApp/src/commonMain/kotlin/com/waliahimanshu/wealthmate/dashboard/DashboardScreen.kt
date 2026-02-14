@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import com.waliahimanshu.wealthmate.*
 import com.waliahimanshu.wealthmate.components.*
 import ir.ehsannarmani.compose_charts.PieChart
+import ir.ehsannarmani.compose_charts.models.LabelHelperProperties
 import ir.ehsannarmani.compose_charts.models.Pie
 import kotlin.math.roundToInt
 
@@ -630,7 +631,8 @@ fun ExpenseBreakdownChart(outgoings: List<Outgoing>, mortgage: MortgageInfo?) {
                 modifier = Modifier.fillMaxWidth().height(180.dp),
                 data = pieData,
                 style = Pie.Style.Stroke(width = 60.dp),
-                selectedScale = 1.1f
+                selectedScale = 1.1f,
+                labelHelperProperties = LabelHelperProperties(enabled = false)
             )
 
             Spacer(Modifier.height(12.dp))
@@ -704,7 +706,8 @@ fun WealthCompositionChart(data: HouseholdFinances) {
                 modifier = Modifier.fillMaxWidth().height(180.dp),
                 data = pieData,
                 style = Pie.Style.Stroke(width = 60.dp),
-                selectedScale = 1.1f
+                selectedScale = 1.1f,
+                labelHelperProperties = LabelHelperProperties(enabled = false)
             )
 
             Spacer(Modifier.height(12.dp))
