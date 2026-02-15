@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalance
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Cottage
 import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.TrendingUp
@@ -19,6 +20,7 @@ enum class Screen(
     INCOME("Income", Icons.Outlined.TrendingUp),
     EXPENSES("Expenses", Icons.Outlined.Receipt),
     SAVINGS_INVESTMENTS("Savings & Investments", Icons.Outlined.AccountBalance, mobileDisplayName = "Savings"),
+    PROPERTY("Property", Icons.Outlined.Cottage, showInMobileBottomBar = false),
     GOALS("Goals", Icons.Outlined.Flag, showInMobileBottomBar = false),
     SETTINGS("Settings", Icons.Outlined.Settings, showInMobileBottomBar = false);
 

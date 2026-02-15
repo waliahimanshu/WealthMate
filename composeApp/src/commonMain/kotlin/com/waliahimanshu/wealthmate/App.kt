@@ -23,6 +23,7 @@ import com.waliahimanshu.wealthmate.investments.EditInvestmentDialog
 import com.waliahimanshu.wealthmate.investments.InvestmentsScreen
 import com.waliahimanshu.wealthmate.investments.investmentsContent
 import com.waliahimanshu.wealthmate.navigation.Screen
+import com.waliahimanshu.wealthmate.property.PropertyScreen
 import com.waliahimanshu.wealthmate.savings.AddSavingsDialog
 import com.waliahimanshu.wealthmate.savings.DeleteConfirmationDialog
 import com.waliahimanshu.wealthmate.savings.EditSavingsDialog
@@ -376,9 +377,6 @@ private fun ScreenContent(
                             }
                         }
                     },
-                    onUpdateMortgage = { mortgage ->
-                        scope.launch { repository.updateData { it.copy(mortgage = mortgage) } }
-                    },
                     onAddCustomCategory = { category ->
                         scope.launch {
                             repository.updateData {
@@ -391,6 +389,12 @@ private fun ScreenContent(
                     data = data,
                     repository = repository,
                     scope = scope
+                )
+                Screen.PROPERTY -> PropertyScreen(
+                    data = data,
+                    onUpdateMortgage = { mortgage ->
+                        scope.launch { repository.updateData { it.copy(mortgage = mortgage) } }
+                    }
                 )
                 Screen.GOALS -> GoalsScreen(
                     data = data,

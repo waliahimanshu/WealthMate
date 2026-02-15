@@ -7,7 +7,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.*
@@ -26,7 +25,6 @@ fun ExpensesScreen(
     data: HouseholdFinances,
     onUpdateSharedOutgoings: (List<Outgoing>) -> Unit,
     onUpdateMemberOutgoings: (String, List<Outgoing>) -> Unit,
-    onUpdateMortgage: (MortgageInfo?) -> Unit,
     onAddCustomCategory: (String) -> Unit
 ) {
     var selectedTab by remember { mutableStateOf(0) }
@@ -63,10 +61,6 @@ fun ExpensesScreen(
             showAddDialog = true
         }) {
             Text("Add Expense")
-        }
-
-        if (selectedTab == 0) {
-            MortgageSection(data.mortgage, onUpdateMortgage)
         }
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -136,44 +130,6 @@ fun ExpensesScreen(
                     onUpdateMemberOutgoings(deletingForMemberId!!, data.members.find { it.id == deletingForMemberId }?.outgoings?.filter { it.id != outgoing.id } ?: emptyList())
                 }
                 deletingOutgoing = null
-            }
-        )
-    }
-}
-
-@Composable
-fun MortgageSection(mortgage: MortgageInfo?, onUpdate: (MortgageInfo?) -> Unit) {
-    var showMortgageDialog by remember { mutableStateOf(false) }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Mortgage", fontWeight = FontWeight.Bold)
-                TextButton(onClick = { showMortgageDialog = true }) {
-                    Text(if (mortgage == null) "Add" else "Edit")
-                }
-            }
-            if (mortgage != null) {
-                Text("${mortgage.provider} - ${displayCurrency(mortgage.monthlyPayment)}/mo", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("${mortgage.interestRate}% - ${mortgage.termRemainingMonths} months remaining", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-    }
-
-    if (showMortgageDialog) {
-        MortgageDialog(
-            mortgage = mortgage,
-            onDismiss = { showMortgageDialog = false },
-            onSave = {
-                onUpdate(it)
-                showMortgageDialog = false
             }
         )
     }
@@ -342,40 +298,3 @@ fun EditOutgoingDialog(
     )
 }
 
-@Composable
-fun MortgageDialog(mortgage: MortgageInfo?, onDismiss: () -> Unit, onSave: (MortgageInfo?) -> Unit) {
-    var provider by remember { mutableStateOf(mortgage?.provider ?: "") }
-    var balance by remember { mutableStateOf(mortgage?.remainingBalance?.toString() ?: "") }
-    var payment by remember { mutableStateOf(mortgage?.monthlyPayment?.toString() ?: "") }
-    var rate by remember { mutableStateOf(mortgage?.interestRate?.toString() ?: "") }
-    var term by remember { mutableStateOf(mortgage?.termRemainingMonths?.toString() ?: "") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Mortgage Details") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(value = provider, onValueChange = { provider = it }, label = { Text("Lender") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = balance, onValueChange = { balance = it }, label = { Text("Remaining Balance") }, prefix = { Text("£") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = payment, onValueChange = { payment = it }, label = { Text("Monthly Payment") }, prefix = { Text("£") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = rate, onValueChange = { rate = it }, label = { Text("Interest Rate") }, suffix = { Text("%") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = term, onValueChange = { term = it }, label = { Text("Remaining Term (months)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
-            }
-        },
-        confirmButton = {
-            Button(onClick = {
-                if (provider.isNotBlank()) {
-                    onSave(MortgageInfo(provider = provider, remainingBalance = balance.toDoubleOrNull() ?: 0.0, monthlyPayment = payment.toDoubleOrNull() ?: 0.0, interestRate = rate.toDoubleOrNull() ?: 0.0, termRemainingMonths = term.toIntOrNull() ?: 0))
-                }
-            }) { Text("Save") }
-        },
-        dismissButton = {
-            Row {
-                if (mortgage != null) {
-                    TextButton(onClick = { onSave(null) }) { Text("Remove", color = Color.Red) }
-                }
-                TextButton(onClick = onDismiss) { Text("Cancel") }
-            }
-        }
-    )
-}

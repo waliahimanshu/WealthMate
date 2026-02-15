@@ -314,18 +314,24 @@ enum class UKAccountType {
 }
 
 /**
- * Mortgage details
+ * Mortgage and property details
  */
 @Serializable
 data class MortgageInfo(
     val provider: String,
     val propertyValue: Double = 0.0,
+    val purchasePrice: Double = 0.0,
+    val purchaseDate: Long? = null,
+    val originalMortgageAmount: Double = 0.0,
     val remainingBalance: Double,
     val monthlyPayment: Double,
     val interestRate: Double,
     val mortgageType: MortgageType = MortgageType.REPAYMENT,
-    val fixedUntil: Long? = null, // When fixed rate ends
+    val dealDescription: String = "", // e.g. "2-year fixed", "5-year fixed", "Tracker"
+    val fixedUntil: Long? = null, // When fixed rate deal ends
     val termRemainingMonths: Int,
+    val totalTermMonths: Int = 0, // Original full term in months (e.g. 300 for 25 years)
+    val overpaymentAllowancePercent: Double = 10.0, // Typical UK default is 10%
     val owners: List<String> = emptyList(), // Member IDs
     val notes: String = ""
 ) {
@@ -334,6 +340,18 @@ data class MortgageInfo(
 
     val equity: Double
         get() = propertyValue - remainingBalance
+
+    val equityPercent: Double
+        get() = if (propertyValue > 0) (equity / propertyValue) * 100 else 0.0
+
+    val mortgagePaidDown: Double
+        get() = if (originalMortgageAmount > 0) originalMortgageAmount - remainingBalance else 0.0
+
+    val termRemainingYears: Int
+        get() = termRemainingMonths / 12
+
+    val termRemainingExtraMonths: Int
+        get() = termRemainingMonths % 12
 }
 
 @Serializable
