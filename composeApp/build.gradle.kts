@@ -158,17 +158,11 @@ compose.desktop {
 
             macOS {
                 bundleID = "com.waliahimanshu.wealthmate"
-                iconFile.set(project.file("icons/icon.icns"))
             }
 
             windows {
-                iconFile.set(project.file("icons/icon.ico"))
                 menuGroup = "WealthMate"
                 upgradeUuid = "b5f3c2d1-4e5f-6a7b-8c9d-0e1f2a3b4c5d"
-            }
-
-            linux {
-                iconFile.set(project.file("icons/icon.png"))
             }
         }
     }

@@ -31,7 +31,9 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
 
       - name: Build WASM distribution
-        run: ./gradlew :composeApp:wasmJsBrowserDistribution
+        run: ./gradlew :composeApp:wasmJsBrowserDistribution --no-daemon
+        env:
+          GRADLE_OPTS: -Xmx4g
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
